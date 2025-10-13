@@ -1,0 +1,19 @@
+# Railway Production Requirements
+# This file consolidates all production dependencies for Railway deployment
+
+-r requirements/production.txt
+
+# Railway-specific optimizations
+whitenoise[brotli]==6.6.0
+
+# Production WSGI Server
+gunicorn==21.2.0
+
+# Health checks and monitoring
+psutil==5.9.6
+
+# Railway PostgreSQL support
+psycopg2-binary==2.9.7
+
+# Environment management
+python-decouple==3.8

@@ -11,16 +11,8 @@ from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from django.http import JsonResponse
 from django.views.decorators.cache import cache_page
+from apps.core.health_views import health_check, ready_check
 import datetime
-
-def health_check(request):
-    """Simple health check endpoint"""
-    return JsonResponse({
-        'status': 'healthy',
-        'timestamp': datetime.datetime.now().isoformat(),
-        'service': 'REJLERS Backend API',
-        'version': '1.0.0'
-    })
 
 def api_root(request):
     """API root endpoint with basic information"""
@@ -52,8 +44,9 @@ urlpatterns = [
     # Admin interface
     path('admin/', admin.site.urls),
     
-    # Health check
-    path('health/', cache_page(60)(health_check), name='health-check'),
+    # Health checks for deployment
+    path('health/', health_check, name='health-check'),
+    path('ready/', ready_check, name='ready-check'),
     
     # API v1
     path('api/v1/', include(api_v1_patterns)),

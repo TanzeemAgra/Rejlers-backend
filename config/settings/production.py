@@ -15,26 +15,40 @@ DEBUG = False
 ALLOWED_HOSTS = [
     config('PRODUCTION_HOST', default='api.rejlers.com'),
     config('STAGING_HOST', default='staging-api.rejlers.com'),
-    'rejlers-backend.railway.app',  # Railway deployment
+    '.railway.app',  # Railway deployment (wildcard)
     '.vercel.app',  # Vercel deployment
+    '127.0.0.1',  # Local testing
+    'localhost',  # Local testing
 ]
 
 # Production Database Configuration
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT', default='5432'),
-        'OPTIONS': {
-            'connect_timeout': 10,
-            'sslmode': 'require',
-        },
-        'CONN_MAX_AGE': 600,
+# Railway provides DATABASE_URL automatically
+import dj_database_url
+
+DATABASE_URL = config('DATABASE_URL', default=None)
+
+if DATABASE_URL:
+    # Use Railway's DATABASE_URL
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
-}
+else:
+    # Fallback to manual configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME'),
+            'USER': config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST'),
+            'PORT': config('DB_PORT', default='5432'),
+            'OPTIONS': {
+                'connect_timeout': 10,
+                'sslmode': 'require',
+            },
+            'CONN_MAX_AGE': 600,
+        }
+    }
 
 # CORS Settings for Production
 CORS_ALLOW_ALL_ORIGINS = False
