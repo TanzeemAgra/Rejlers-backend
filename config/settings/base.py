@@ -355,3 +355,27 @@ LOGGING = {
         },
     },
 }
+
+# ===========================================
+# AI SERVICES CONFIGURATION - OpenAI
+# ===========================================
+# OpenAI API Configuration with soft coding for security
+OPENAI_API_KEY = config('OPENAI_API_KEY', default=None)
+OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4')
+OPENAI_MAX_TOKENS = config('OPENAI_MAX_TOKENS', default=2000, cast=int)
+OPENAI_TEMPERATURE = config('OPENAI_TEMPERATURE', default=0.7, cast=float)
+OPENAI_TIMEOUT = config('OPENAI_TIMEOUT', default=30, cast=int)
+OPENAI_ORGANIZATION = config('OPENAI_ORGANIZATION', default=None)
+
+# AI Service Settings
+AI_SERVICES = {
+    'OPENAI': {
+        'API_KEY': OPENAI_API_KEY,
+        'MODEL': OPENAI_MODEL,
+        'MAX_TOKENS': OPENAI_MAX_TOKENS,
+        'TEMPERATURE': OPENAI_TEMPERATURE,
+        'TIMEOUT': OPENAI_TIMEOUT,
+        'ORGANIZATION': OPENAI_ORGANIZATION,
+        'ENABLED': OPENAI_API_KEY is not None,
+    }
+}

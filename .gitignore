@@ -248,6 +248,15 @@ auth_tokens.*
 railway_secrets.*
 production_secrets.*
 
+# OpenAI API Keys - CRITICAL SECURITY
+openai_keys.*
+openai_config.*
+ai_credentials.*
+*openai*
+*OPENAI*
+.openai
+openai.env
+
 # Production Configurations
 production_config.py
 staging_config.py

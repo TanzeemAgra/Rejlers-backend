@@ -33,6 +33,9 @@ Pillow==10.0.1
 django-storages==1.14.2
 boto3==1.29.7
 
+# AI Services
+openai==0.28.1
+
 # Utilities
 requests==2.31.0
 python-slugify==8.0.1
