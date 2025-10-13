@@ -1,72 +1,48 @@
-# REJLERS Backend - Railway Production Requirements (Railway-Optimized)
-# Minimal & compatible dependencies for successful Railway deployment
+# REJLERS Backend - Production Requirements
+# Core dependencies for Railway production deployment
 
-# ==========================================
-# CORE DJANGO & DRF
-# ==========================================
+# Core Django Framework
 Django==4.2.7
 djangorestframework==3.14.0
 django-cors-headers==4.3.1
 
-# ==========================================
-# DATABASE SUPPORT (ESSENTIAL)
-# ==========================================
+# Database Support
 psycopg2-binary==2.9.7
 dj-database-url==2.1.0
 
-# ==========================================
-# AUTHENTICATION & SECURITY
-# ==========================================
+# Authentication & Security
 djangorestframework-simplejwt==5.3.0
 django-allauth==0.57.0
-cryptography==41.0.7
 
-# ==========================================
-# API DOCUMENTATION
-# ==========================================
+# API Documentation
 drf-spectacular==0.26.5
 
-# ==========================================
-# ENVIRONMENT & CONFIGURATION
-# ==========================================
+# Configuration Management
 python-decouple==3.8
 django-environ==0.11.2
 
-# ==========================================
-# VALIDATION & SERIALIZATION
-# ==========================================
+# Caching
+django-redis==5.4.0
+
+# Filtering & Validation
 django-filter==23.3
 
-# ==========================================
-# FILE HANDLING & STORAGE (BASIC)
-# ==========================================
+# File Handling
 Pillow==10.0.1
-django-storages==1.14.2
 
-# ==========================================
-# AI SERVICES
-# ==========================================
-openai==0.28.1
-
-# ==========================================
-# UTILITIES (ESSENTIAL)
-# ==========================================
+# HTTP Utilities
 requests==2.31.0
-python-slugify==8.0.1
 
-# ==========================================
-# TIME & DATE
-# ==========================================
+# Date/Time Support
 python-dateutil==2.8.2
 pytz==2023.3
 
-# ==========================================
-# PRODUCTION SERVER
-# ==========================================
+# Production Server
 gunicorn==21.2.0
 whitenoise==6.6.0
 
-# ==========================================
-# MONITORING (OPTIONAL)
-# ==========================================
+# AI Services (Essential)
+openai==0.28.1
+
+# Monitoring
 sentry-sdk[django]==1.38.0

@@ -1,0 +1,20 @@
+# nixpacks.toml - Railway Build Configuration
+
+[providers.python]
+
+[phases.setup]
+dependsOn = []
+
+[phases.install]
+dependsOn = ["setup"]
+cmds = [
+    "pip install --upgrade pip",
+    "pip install --no-cache-dir -r requirements.txt"
+]
+
+[phases.build]
+dependsOn = ["install"]
+cmds = []
+
+[start]
+cmd = "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
