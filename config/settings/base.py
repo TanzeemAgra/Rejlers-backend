@@ -111,22 +111,22 @@ else:
         }
     }
 
-# Secondary Database: MongoDB (MangaDB)
+# Secondary Database: MongoDB (MangaDB) - TEMPORARILY DISABLED
 # Add MongoDB configuration using soft coding
-DATABASES['mangadb'] = {
-    'ENGINE': 'djongo',
-    'NAME': config('MONGODB_NAME', default='MangaDB'),
-    'CLIENT': {
-        'host': config('MONGODB_URL', default=f"mongodb://{config('MONGODB_HOST', default='localhost')}:{config('MONGODB_PORT', default='27017')}/{config('MONGODB_NAME', default='MangaDB')}"),
-        'username': config('MONGODB_USER', default=''),
-        'password': config('MONGODB_PASSWORD', default=''),
-        'authSource': config('MONGODB_NAME', default='MangaDB'),
-        'authMechanism': 'SCRAM-SHA-1',
-    }
-}
+# DATABASES['mangadb'] = {
+#     'ENGINE': 'djongo',
+#     'NAME': config('MONGODB_NAME', default='MangaDB'),
+#     'CLIENT': {
+#         'host': config('MONGODB_URL', default=f"mongodb://{config('MONGODB_HOST', default='localhost')}:{config('MONGODB_PORT', default='27017')}/{config('MONGODB_NAME', default='MangaDB')}"),
+#         'username': config('MONGODB_USER', default=''),
+#         'password': config('MONGODB_PASSWORD', default=''),
+#         'authSource': config('MONGODB_NAME', default='MangaDB'),
+#         'authMechanism': 'SCRAM-SHA-1',
+#     }
+# }
 
-# Database Router Configuration
-DATABASE_ROUTERS = ['apps.core.routers.DatabaseRouter']
+# Database Router Configuration - TEMPORARILY DISABLED
+# DATABASE_ROUTERS = ['apps.core.routers.DatabaseRouter']
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

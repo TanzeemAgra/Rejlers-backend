@@ -1,5 +1,5 @@
 """
-Django admin configuration for authentication app
+Django admin configuration for authentication app with RBAC
 """
 
 from django.contrib import admin
@@ -7,252 +7,160 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import User, UserProfile, EmailVerificationToken, PasswordResetToken
+from django.utils.translation import gettext_lazy as _
+from .models import User, Role, AuditLog
+
+
+@admin.register(Role)
+class RoleAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Role model
+    """
+    list_display = ['name', 'description', 'is_active', 'user_count', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'description', 'is_active')
+        }),
+        (_('Permissions'), {
+            'fields': ('permissions',),
+            'classes': ('collapse',)
+        }),
+        (_('Metadata'), {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def user_count(self, obj):
+        """Display number of users with this role"""
+        count = obj.users.count()
+        if count > 0:
+            url = reverse('admin:authentication_user_changelist')
+            return format_html(
+                '<a href="{}?role__id__exact={}">{} users</a>',
+                url, obj.id, count
+            )
+        return "0 users"
+    user_count.short_description = _('Users')
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     """
-    Custom User admin
+    Enhanced User admin with RBAC features
     """
     list_display = [
-        'email', 'username', 'get_full_name', 'company_name', 
-        'job_title', 'email_verified', 'is_active', 'date_joined'
+        'email', 'username', 'get_full_name', 'company_name', 'job_title', 'role', 'department', 
+        'is_approved', 'is_verified', 'is_active', 'date_joined'
     ]
     list_filter = [
-        'email_verified', 'is_active', 'is_staff', 'is_superuser',
-        'company_size', 'industry', 'newsletter_subscribed', 'date_joined'
+        'role', 'department', 'is_approved', 'is_verified', 
+        'is_active', 'is_staff', 'date_joined'
     ]
-    search_fields = ['email', 'username', 'first_name', 'last_name', 'company_name']
-    ordering = ['-date_joined']
+    search_fields = ['email', 'username', 'first_name', 'last_name', 'employee_id']
+    readonly_fields = ['id', 'date_joined', 'last_login', 'created_at', 'updated_at']
     
-    # Fieldsets for user detail view
     fieldsets = (
         (None, {
             'fields': ('username', 'password')
         }),
-        ('Personal info', {
-            'fields': (
-                'first_name', 'last_name', 'email', 'phone',
-                'profile_picture', 'bio'
-            )
+        (_('Personal info'), {
+            'fields': ('first_name', 'last_name', 'email', 'phone_number', 'profile_image')
         }),
-        ('Company info', {
-            'fields': ('company_name', 'job_title', 'industry', 'company_size')
+        (_('Business Profile'), {
+            'fields': ('employee_id', 'company_name', 'job_title', 'department', 'position', 'role')
         }),
-        ('Preferences', {
-            'fields': ('newsletter_subscribed', 'marketing_emails')
+        (_('Permissions'), {
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'is_approved', 'is_verified', 'groups', 'user_permissions'),
         }),
-        ('Account Status', {
-            'fields': (
-                'email_verified', 'email_verified_at', 'last_login_ip',
-                'is_active', 'is_staff', 'is_superuser'
-            )
+        (_('Important dates'), {
+            'fields': ('last_login', 'date_joined', 'last_password_change')
         }),
-        ('Important dates', {
-            'fields': ('last_login', 'date_joined')
+        (_('Security'), {
+            'fields': ('failed_login_attempts', 'last_login_ip'),
+            'classes': ('collapse',)
         }),
-        ('Permissions', {
-            'classes': ('collapse',),
-            'fields': ('groups', 'user_permissions'),
-        }),
+        (_('Metadata'), {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
     )
     
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': (
-                'username', 'email', 'first_name', 'last_name',
-                'password1', 'password2'
-            ),
-        }),
-        ('Company info', {
-            'classes': ('wide',),
-            'fields': ('company_name', 'job_title', 'industry', 'company_size')
+            'fields': ('username', 'email', 'first_name', 'last_name', 'password1', 'password2', 'role'),
         }),
     )
     
-    readonly_fields = ['date_joined', 'last_login', 'email_verified_at']
+    ordering = ['email']
     
     def get_full_name(self, obj):
-        return obj.get_full_name()
-    get_full_name.short_description = 'Full Name'
-    
-    actions = ['verify_email', 'send_welcome_email']
-    
-    def verify_email(self, request, queryset):
-        for user in queryset:
-            user.verify_email()
-        self.message_user(request, f"Email verified for {queryset.count()} users.")
-    verify_email.short_description = "Verify email for selected users"
+        """Display user's full name"""
+        return obj.get_full_name() or obj.username
+    get_full_name.short_description = _('Full Name')
 
 
-@admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
     """
-    User Profile admin
+    Admin interface for Audit Log
     """
     list_display = [
-        'user', 'get_user_email', 'city', 'country', 
-        'preferred_contact_method', 'profile_visibility', 'created_at'
+        'user', 'action', 'module', 'object_type', 
+        'description_short', 'ip_address', 'timestamp'
     ]
     list_filter = [
-        'preferred_contact_method', 'profile_visibility', 
-        'country', 'created_at'
+        'action', 'module', 'object_type', 'timestamp'
     ]
     search_fields = [
         'user__email', 'user__first_name', 'user__last_name',
-        'city', 'country', 'address_line1'
+        'description', 'object_id'
     ]
-    ordering = ['-created_at']
+    readonly_fields = ['id', 'timestamp']
     
     fieldsets = (
-        ('User', {
-            'fields': ('user',)
+        (None, {
+            'fields': ('user', 'action', 'module', 'object_type', 'object_id')
         }),
-        ('Professional Links', {
-            'fields': ('linkedin_url', 'website')
+        (_('Details'), {
+            'fields': ('description', 'additional_data')
         }),
-        ('Address Information', {
-            'fields': (
-                'address_line1', 'address_line2', 'city',
-                'state_province', 'postal_code', 'country'
-            )
-        }),
-        ('Interests', {
-            'fields': ('services_of_interest', 'industries_of_interest')
-        }),
-        ('Preferences', {
-            'fields': ('preferred_contact_method', 'profile_visibility')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
+        (_('Request Info'), {
+            'fields': ('ip_address', 'user_agent'),
             'classes': ('collapse',)
         }),
-    )
-    
-    readonly_fields = ['created_at', 'updated_at']
-    filter_horizontal = ['services_of_interest', 'industries_of_interest']
-    
-    def get_user_email(self, obj):
-        return obj.user.email
-    get_user_email.short_description = 'Email'
-    get_user_email.admin_order_field = 'user__email'
-
-
-@admin.register(EmailVerificationToken)
-class EmailVerificationTokenAdmin(admin.ModelAdmin):
-    """
-    Email Verification Token admin
-    """
-    list_display = [
-        'user', 'get_user_email', 'token', 'expires_at', 
-        'used', 'used_at', 'is_expired_display'
-    ]
-    list_filter = ['used', 'expires_at', 'created_at']
-    search_fields = ['user__email', 'user__first_name', 'user__last_name']
-    ordering = ['-created_at']
-    
-    fieldsets = (
-        ('Token Info', {
-            'fields': ('user', 'token', 'expires_at')
-        }),
-        ('Usage', {
-            'fields': ('used', 'used_at')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
+        (_('Metadata'), {
+            'fields': ('id', 'timestamp'),
             'classes': ('collapse',)
-        }),
+        })
     )
     
-    readonly_fields = ['created_at', 'updated_at', 'used_at']
+    def description_short(self, obj):
+        """Display shortened description"""
+        if obj.description and len(obj.description) > 50:
+            return obj.description[:50] + '...'
+        return obj.description or '-'
+    description_short.short_description = _('Description')
     
-    def get_user_email(self, obj):
-        return obj.user.email
-    get_user_email.short_description = 'User Email'
-    get_user_email.admin_order_field = 'user__email'
+    def has_add_permission(self, request):
+        """Prevent manual creation of audit logs"""
+        return False
     
-    def is_expired_display(self, obj):
-        is_expired = obj.is_expired()
-        if is_expired:
-            return format_html(
-                '<span style="color: red;">Expired</span>'
-            )
-        return format_html(
-            '<span style="color: green;">Valid</span>'
-        )
-    is_expired_display.short_description = 'Status'
+    def has_change_permission(self, request, obj=None):
+        """Make audit logs read-only"""
+        return False
     
-    actions = ['mark_as_used']
-    
-    def mark_as_used(self, request, queryset):
-        count = 0
-        for token in queryset:
-            if not token.used:
-                token.mark_used()
-                count += 1
-        self.message_user(request, f"Marked {count} tokens as used.")
-    mark_as_used.short_description = "Mark selected tokens as used"
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of audit logs"""
+        return False
 
 
-@admin.register(PasswordResetToken)
-class PasswordResetTokenAdmin(admin.ModelAdmin):
-    """
-    Password Reset Token admin
-    """
-    list_display = [
-        'user', 'get_user_email', 'token', 'expires_at',
-        'used', 'used_at', 'ip_address', 'is_expired_display'
-    ]
-    list_filter = ['used', 'expires_at', 'created_at']
-    search_fields = ['user__email', 'user__first_name', 'user__last_name', 'ip_address']
-    ordering = ['-created_at']
-    
-    fieldsets = (
-        ('Token Info', {
-            'fields': ('user', 'token', 'expires_at', 'ip_address')
-        }),
-        ('Usage', {
-            'fields': ('used', 'used_at')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    readonly_fields = ['created_at', 'updated_at', 'used_at']
-    
-    def get_user_email(self, obj):
-        return obj.user.email
-    get_user_email.short_description = 'User Email'
-    get_user_email.admin_order_field = 'user__email'
-    
-    def is_expired_display(self, obj):
-        is_expired = obj.is_expired()
-        if is_expired:
-            return format_html(
-                '<span style="color: red;">Expired</span>'
-            )
-        return format_html(
-            '<span style="color: green;">Valid</span>'
-        )
-    is_expired_display.short_description = 'Status'
-    
-    actions = ['mark_as_used']
-    
-    def mark_as_used(self, request, queryset):
-        count = 0
-        for token in queryset:
-            if not token.used:
-                token.mark_used()
-                count += 1
-        self.message_user(request, f"Marked {count} tokens as used.")
-    mark_as_used.short_description = "Mark selected tokens as used"
-
-
-# Customize admin site header and title
-admin.site.site_header = "REJLERS Administration"
+# Customize admin site headers
+admin.site.site_header = "REJLERS RBAC Administration"
 admin.site.site_title = "REJLERS Admin"
-admin.site.index_title = "Welcome to REJLERS Administration"
+admin.site.index_title = "Welcome to REJLERS Administration Portal"

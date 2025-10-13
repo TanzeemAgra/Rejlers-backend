@@ -1,35 +1,37 @@
 """
-Views for REJLERS Backend authentication system
+Enhanced API views for REJLERS RBAC authentication system
 """
 
-from rest_framework import status, generics, permissions
+from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from django.core.mail import send_mail
-from django.conf import settings
+from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.db.models import Q
 from datetime import timedelta
 import uuid
 
-from .models import User, UserProfile, EmailVerificationToken, PasswordResetToken
+from .models import User, Role, AuditLog
 from .serializers import (
     UserRegistrationSerializer,
     UserSerializer,
-    UserProfileSerializer,
+    RoleSerializer,
     CustomTokenObtainPairSerializer,
     ChangePasswordSerializer,
-    PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer
+    AuditLogSerializer,
+    UserPermissionSerializer
 )
 
 
 class UserRegistrationView(generics.CreateAPIView):
     """
-    User registration endpoint
+    User registration API endpoint
     """
     queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer
@@ -40,54 +42,16 @@ class UserRegistrationView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         
-        # Create user profile
-        UserProfile.objects.create(user=user)
-        
-        # Create email verification token
-        token = EmailVerificationToken.objects.create(
-            user=user,
-            expires_at=timezone.now() + timedelta(hours=24)
-        )
-        
-        # Send verification email (in production, use proper email templates)
-        try:
-            send_mail(
-                subject='Welcome to REJLERS - Verify Your Email',
-                message=f'''
-                Welcome to REJLERS!
-                
-                Please verify your email by clicking this link:
-                {settings.FRONTEND_URL}/verify-email/{token.token}
-                
-                This link will expire in 24 hours.
-                
-                Best regards,
-                REJLERS Team
-                ''',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=True,
-            )
-        except Exception as e:
-            print(f"Email sending failed: {e}")
-        
-        # Generate tokens for immediate login
-        refresh = RefreshToken.for_user(user)
-        
         return Response({
-            'message': 'User registered successfully',
-            'user': UserSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            },
-            'verification_sent': True
+            'message': _('User registered successfully. Please wait for admin approval.'),
+            'user_id': str(user.id),
+            'email': user.email
         }, status=status.HTTP_201_CREATED)
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     """
-    Custom login endpoint with additional user data
+    Enhanced JWT login with RBAC information
     """
     serializer_class = CustomTokenObtainPairSerializer
     
@@ -95,18 +59,16 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         response = super().post(request, *args, **kwargs)
         
         if response.status_code == 200:
-            # Get user data
+            # Update user login metadata
             email = request.data.get('email')
-            try:
-                user = User.objects.get(email=email)
-                response.data['user'] = UserSerializer(user).data
-                
-                # Update last login IP
-                user.last_login_ip = self.get_client_ip(request)
-                user.save(update_fields=['last_login_ip'])
-                
-            except User.DoesNotExist:
-                pass
+            if email:
+                try:
+                    user = User.objects.get(email=email)
+                    user.last_login_ip = self.get_client_ip(request)
+                    user.failed_login_attempts = 0
+                    user.save(update_fields=['last_login_ip', 'failed_login_attempts'])
+                except User.DoesNotExist:
+                    pass
         
         return response
     
@@ -122,19 +84,41 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """
-    Get and update user profile
+    User profile management
     """
-    serializer_class = UserProfileSerializer
+    serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_object(self):
-        profile, created = UserProfile.objects.get_or_create(user=self.request.user)
-        return profile
+        return self.request.user
+    
+    def perform_update(self, serializer):
+        user = serializer.save()
+        
+        # Log profile update
+        AuditLog.log_activity(
+            user=self.request.user,
+            action='update',
+            module='user_management',
+            object_type='User',
+            object_id=user.id,
+            description='Profile updated successfully',
+            ip_address=self.get_client_ip()
+        )
+    
+    def get_client_ip(self):
+        """Get client IP address"""
+        x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = self.request.META.get('REMOTE_ADDR')
+        return ip
 
 
 class ChangePasswordView(generics.UpdateAPIView):
     """
-    Change user password
+    Password change endpoint
     """
     serializer_class = ChangePasswordSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -143,245 +127,303 @@ class ChangePasswordView(generics.UpdateAPIView):
         return self.request.user
     
     def update(self, request, *args, **kwargs):
-        user = self.get_object()
         serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         
-        if serializer.is_valid():
-            # Check old password
-            if not user.check_password(serializer.data.get("old_password")):
-                return Response({
-                    'error': 'Invalid old password'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Set new password
-            user.set_password(serializer.data.get("new_password"))
-            user.save()
-            
-            return Response({
-                'message': 'Password updated successfully'
-            }, status=status.HTTP_200_OK)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'message': _('Password changed successfully.')
+        }, status=status.HTTP_200_OK)
 
 
-class EmailVerificationView(APIView):
+class LogoutView(APIView):
     """
-    Verify email address
+    Logout endpoint with token blacklisting
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):
-        token_str = request.data.get('token')
-        
-        if not token_str:
-            return Response({
-                'error': 'Token is required'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
         try:
-            token = EmailVerificationToken.objects.get(
-                token=token_str,
-                used=False
+            refresh_token = request.data.get("refresh_token")
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            
+            # Log logout activity
+            AuditLog.log_activity(
+                user=request.user,
+                action='logout',
+                description='User logged out successfully'
             )
-        except EmailVerificationToken.DoesNotExist:
+            
             return Response({
-                'error': 'Invalid or expired token'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        if token.is_expired():
+                'message': _('Logout successful.')
+            }, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
             return Response({
-                'error': 'Token has expired'
+                'error': _('Invalid token.')
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Mark email as verified
-        user = token.user
-        user.verify_email()
-        token.mark_used()
-        
-        return Response({
-            'message': 'Email verified successfully'
-        }, status=status.HTTP_200_OK)
 
 
-class PasswordResetRequestView(generics.CreateAPIView):
+# RBAC Management Views
+
+class RoleListView(generics.ListCreateAPIView):
     """
-    Request password reset
+    Role management - list and create roles
     """
-    serializer_class = PasswordResetRequestSerializer
-    permission_classes = [permissions.AllowAny]
+    queryset = Role.objects.all()
+    serializer_class = RoleSerializer
+    permission_classes = [permissions.IsAuthenticated]
     
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def get_queryset(self):
+        # Only users with user management permissions can access roles
+        if not self.request.user.has_module_permission('user_management', 'view'):
+            return Role.objects.none()
+        return Role.objects.filter(is_active=True)
+    
+    def perform_create(self, serializer):
+        # Only users with manage_all permission can create roles
+        if not self.request.user.has_module_permission('user_management', 'manage_all'):
+            raise PermissionDenied(_('You do not have permission to create roles.'))
+        
+        role = serializer.save()
+        
+        # Log role creation
+        AuditLog.log_activity(
+            user=self.request.user,
+            action='create',
+            module='user_management',
+            object_type='Role',
+            object_id=role.id,
+            description=f'New role created: {role.name}'
+        )
+
+
+class RoleDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Role management - retrieve, update, delete specific role
+    """
+    queryset = Role.objects.all()
+    serializer_class = RoleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if not self.request.user.has_module_permission('user_management', 'view'):
+            return Role.objects.none()
+        return Role.objects.filter(is_active=True)
+    
+    def perform_update(self, serializer):
+        if not self.request.user.has_module_permission('user_management', 'edit'):
+            raise PermissionDenied(_('You do not have permission to edit roles.'))
+        
+        role = serializer.save()
+        
+        # Log role update
+        AuditLog.log_activity(
+            user=self.request.user,
+            action='update',
+            module='user_management',
+            object_type='Role',
+            object_id=role.id,
+            description=f'Role updated: {role.name}'
+        )
+    
+    def perform_destroy(self, instance):
+        if not self.request.user.has_module_permission('user_management', 'delete'):
+            raise PermissionDenied(_('You do not have permission to delete roles.'))
+        
+        # Soft delete by deactivating
+        instance.is_active = False
+        instance.save()
+        
+        # Log role deletion
+        AuditLog.log_activity(
+            user=self.request.user,
+            action='delete',
+            module='user_management',
+            object_type='Role',
+            object_id=instance.id,
+            description=f'Role deactivated: {instance.name}'
+        )
+
+
+class UserListView(generics.ListAPIView):
+    """
+    User list for administrators
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if not self.request.user.has_module_permission('user_management', 'view'):
+            return User.objects.none()
+        
+        queryset = User.objects.filter(is_active=True).select_related('role')
+        
+        # Filter by search query if provided
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(employee_id__icontains=search)
+            )
+        
+        return queryset
+
+
+class UserDetailView(generics.RetrieveUpdateAPIView):
+    """
+    User detail management for administrators
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if not self.request.user.has_module_permission('user_management', 'view'):
+            return User.objects.none()
+        return User.objects.filter(is_active=True)
+    
+    def perform_update(self, serializer):
+        if not self.request.user.has_module_permission('user_management', 'edit'):
+            raise PermissionDenied(_('You do not have permission to edit users.'))
+        
+        user = serializer.save()
+        
+        # Log user update
+        AuditLog.log_activity(
+            user=self.request.user,
+            action='update',
+            module='user_management',
+            object_type='User',
+            object_id=user.id,
+            description=f'User updated: {user.email}'
+        )
+
+
+class UserPermissionCheckView(APIView):
+    """
+    Check user permissions for specific modules and actions
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        serializer = UserPermissionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        email = serializer.validated_data['email']
+        module = serializer.validated_data['module']
+        permission = serializer.validated_data['permission']
         
-        try:
-            user = User.objects.get(email=email)
-            
-            # Create password reset token
-            token = PasswordResetToken.objects.create(
-                user=user,
-                expires_at=timezone.now() + timedelta(hours=1),
-                ip_address=self.get_client_ip(request)
-            )
-            
-            # Send password reset email
-            try:
-                send_mail(
-                    subject='REJLERS - Password Reset Request',
-                    message=f'''
-                    You have requested a password reset for your REJLERS account.
-                    
-                    Please click this link to reset your password:
-                    {settings.FRONTEND_URL}/reset-password/{token.token}
-                    
-                    This link will expire in 1 hour.
-                    
-                    If you did not request this, please ignore this email.
-                    
-                    Best regards,
-                    REJLERS Team
-                    ''',
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    fail_silently=True,
-                )
-            except Exception as e:
-                print(f"Email sending failed: {e}")
-            
-        except User.DoesNotExist:
-            # Don't reveal whether user exists for security
-            pass
+        has_permission = request.user.has_module_permission(module, permission)
         
         return Response({
-            'message': 'If the email exists, a password reset link has been sent'
-        }, status=status.HTTP_200_OK)
-    
-    def get_client_ip(self, request):
-        """Get client IP address"""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
+            'user_id': str(request.user.id),
+            'module': module,
+            'permission': permission,
+            'has_permission': has_permission,
+            'role': request.user.get_role_name()
+        })
 
 
-class PasswordResetConfirmView(generics.CreateAPIView):
+class AuditLogListView(generics.ListAPIView):
     """
-    Confirm password reset with token
+    Audit log listing for administrators
     """
-    serializer_class = PasswordResetConfirmSerializer
-    permission_classes = [permissions.AllowAny]
+    queryset = AuditLog.objects.all()
+    serializer_class = AuditLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
     
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def get_queryset(self):
+        if not self.request.user.has_module_permission('system_settings', 'view'):
+            return AuditLog.objects.none()
         
-        token_str = serializer.validated_data['token']
-        new_password = serializer.validated_data['new_password']
+        queryset = AuditLog.objects.select_related('user').order_by('-timestamp')
         
-        try:
-            token = PasswordResetToken.objects.get(
-                token=token_str,
-                used=False
-            )
-        except PasswordResetToken.DoesNotExist:
-            return Response({
-                'error': 'Invalid or expired token'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        # Filter by user if provided
+        user_id = self.request.query_params.get('user_id', None)
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
         
-        if token.is_expired():
-            return Response({
-                'error': 'Token has expired'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        # Filter by action if provided
+        action = self.request.query_params.get('action', None)
+        if action:
+            queryset = queryset.filter(action=action)
         
-        # Reset password
-        user = token.user
-        user.set_password(new_password)
-        user.save()
+        # Filter by module if provided
+        module = self.request.query_params.get('module', None)
+        if module:
+            queryset = queryset.filter(module=module)
         
-        # Mark token as used
-        token.mark_used()
-        
-        return Response({
-            'message': 'Password reset successfully'
-        }, status=status.HTTP_200_OK)
+        return queryset[:100]  # Limit to recent 100 entries
 
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def user_detail(request):
+def user_dashboard_data(request):
     """
-    Get current user details
-    """
-    serializer = UserSerializer(request.user)
-    return Response(serializer.data)
-
-
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def logout_view(request):
-    """
-    Logout user by blacklisting refresh token
-    """
-    try:
-        refresh_token = request.data["refresh_token"]
-        token = RefreshToken(refresh_token)
-        token.blacklist()
-        
-        return Response({
-            'message': 'Logged out successfully'
-        }, status=status.HTTP_205_RESET_CONTENT)
-    except Exception as e:
-        return Response({
-            'error': 'Invalid token'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def resend_verification_email(request):
-    """
-    Resend email verification
+    Get user-specific dashboard data based on role and permissions
     """
     user = request.user
     
-    if user.email_verified:
-        return Response({
-            'message': 'Email already verified'
-        }, status=status.HTTP_400_BAD_REQUEST)
+    # Get accessible modules
+    accessible_modules = user.get_accessible_modules()
     
-    # Create new verification token
-    token = EmailVerificationToken.objects.create(
+    # Basic user info
+    dashboard_data = {
+        'user': {
+            'id': str(user.id),
+            'name': user.get_full_name(),
+            'email': user.email,
+            'role': user.get_role_name(),
+            'employee_id': user.employee_id,
+            'department': user.department,
+            'position': user.position,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser
+        },
+        'accessible_modules': accessible_modules,
+        'permissions': {}
+    }
+    
+    # Get permissions for each accessible module
+    for module in accessible_modules:
+        module_permissions = []
+        for permission in ['view', 'create', 'edit', 'delete', 'manage_all']:
+            if user.has_module_permission(module, permission):
+                module_permissions.append(permission)
+        dashboard_data['permissions'][module] = module_permissions
+    
+    # Get recent activities if user can view audit logs
+    if user.has_module_permission('system_settings', 'view'):
+        recent_activities = AuditLog.objects.filter(
+            user=user
+        ).order_by('-timestamp')[:5]
+        
+        dashboard_data['recent_activities'] = AuditLogSerializer(
+            recent_activities, many=True
+        ).data
+    
+    # Log dashboard access
+    AuditLog.log_activity(
         user=user,
-        expires_at=timezone.now() + timedelta(hours=24)
+        action='view',
+        module='reporting_dashboards',
+        description='Accessed dashboard'
     )
     
-    # Send verification email
-    try:
-        send_mail(
-            subject='REJLERS - Verify Your Email',
-            message=f'''
-            Please verify your email by clicking this link:
-            {settings.FRONTEND_URL}/verify-email/{token.token}
-            
-            This link will expire in 24 hours.
-            
-            Best regards,
-            REJLERS Team
-            ''',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=True,
-        )
-        
-        return Response({
-            'message': 'Verification email sent'
-        }, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        return Response({
-            'error': 'Failed to send email'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response(dashboard_data)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def health_check(request):
+    """
+    Simple health check endpoint
+    """
+    return Response({
+        'status': 'healthy',
+        'timestamp': timezone.now(),
+        'message': 'REJLERS RBAC API is running'
+    })

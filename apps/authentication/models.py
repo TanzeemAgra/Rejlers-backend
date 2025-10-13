@@ -1,197 +1,227 @@
 """
-User models for REJLERS Backend authentication system
+User models for REJLERS Backend authentication system with RBAC
 """
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from apps.core.models import BaseModel
 import uuid
+import json
+
+
+class Role(models.Model):
+    """
+    Role model for RBAC system - defines user roles and permissions
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(_('role name'), max_length=100, unique=True)
+    description = models.TextField(_('description'), blank=True)
+    permissions = models.JSONField(_('permissions'), default=dict)
+    is_active = models.BooleanField(_('active'), default=True)
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+    
+    # Business module permissions structure
+    MODULE_PERMISSIONS = {
+        'hr_management': ['view', 'create', 'edit', 'delete', 'manage_all'],
+        'projects_engineering': ['view', 'create', 'edit', 'delete', 'manage_all'],
+        'contracts_legal': ['view', 'create', 'edit', 'delete', 'manage_all'],
+        'finance_estimation': ['view', 'create', 'edit', 'delete', 'manage_all'],
+        'reporting_dashboards': ['view', 'create', 'edit', 'delete', 'manage_all'],
+        'hse_compliance': ['view', 'create', 'edit', 'delete', 'manage_all'],
+        'supply_chain': ['view', 'create', 'edit', 'delete', 'manage_all'],
+        'sales_engagement': ['view', 'create', 'edit', 'delete', 'manage_all'],
+        'rto_apc_consulting': ['view', 'create', 'edit', 'delete', 'manage_all'],
+        'user_management': ['view', 'create', 'edit', 'delete', 'manage_all'],
+        'system_settings': ['view', 'edit', 'manage_all'],
+        'ai_services': ['view', 'use', 'configure', 'manage_all']
+    }
+    
+    class Meta:
+        verbose_name = _('Role')
+        verbose_name_plural = _('Roles')
+        
+    def __str__(self):
+        return self.name
+    
+    def has_permission(self, module, permission):
+        """Check if role has specific permission for a module"""
+        if not self.is_active:
+            return False
+        module_perms = self.permissions.get(module, [])
+        return permission in module_perms or 'manage_all' in module_perms
+    
+    def add_permission(self, module, permission):
+        """Add permission to role for a specific module"""
+        if module not in self.permissions:
+            self.permissions[module] = []
+        if permission not in self.permissions[module]:
+            self.permissions[module].append(permission)
+    
+    def remove_permission(self, module, permission):
+        """Remove permission from role for a specific module"""
+        if module in self.permissions and permission in self.permissions[module]:
+            self.permissions[module].remove(permission)
 
 
 class User(AbstractUser):
     """
-    Custom User model for REJLERS system
+    Enhanced User model with RBAC integration and business profile
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=150, blank=True)
-    last_name = models.CharField(max_length=150, blank=True)
+    email = models.EmailField(_('email address'), unique=True)
+    first_name = models.CharField(_('first name'), max_length=30, blank=True)
+    last_name = models.CharField(_('last name'), max_length=150, blank=True)
     
-    # Company/Professional Information
-    company_name = models.CharField(max_length=200, blank=True)
-    job_title = models.CharField(max_length=100, blank=True)
-    phone = models.CharField(max_length=20, blank=True)
-    
-    # Profile Information
-    profile_picture = models.ImageField(upload_to='profiles/', null=True, blank=True)
-    bio = models.TextField(blank=True, max_length=500)
-    
-    # Business Details
-    industry = models.CharField(max_length=100, blank=True)
-    company_size = models.CharField(
-        max_length=50,
-        choices=[
-            ('1-10', '1-10 employees'),
-            ('11-50', '11-50 employees'),
-            ('51-200', '51-200 employees'),
-            ('201-1000', '201-1000 employees'),
-            ('1000+', '1000+ employees'),
-        ],
-        blank=True
+    # Role-based access control
+    role = models.ForeignKey(
+        Role,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users',
+        verbose_name=_('user role')
     )
     
-    # Contact Preferences
-    newsletter_subscribed = models.BooleanField(default=False)
-    marketing_emails = models.BooleanField(default=False)
+    # Business profile fields
+    employee_id = models.CharField(_('employee ID'), max_length=20, unique=True, null=True, blank=True)
+    company_name = models.CharField(_('company name'), max_length=200, default='Rejlers')
+    job_title = models.CharField(_('job title'), max_length=150, default='AI Team Lead')
+    department = models.CharField(_('department'), max_length=100, blank=True)
+    position = models.CharField(_('position'), max_length=100, blank=True)
+    phone_number = models.CharField(_('phone number'), max_length=20, blank=True)
+    profile_image = models.ImageField(_('profile image'), upload_to='profiles/', null=True, blank=True)
     
-    # Account Status
-    email_verified = models.BooleanField(default=False)
-    email_verified_at = models.DateTimeField(null=True, blank=True)
-    last_login_ip = models.GenericIPAddressField(null=True, blank=True)
+    # Account status and metadata
+    is_approved = models.BooleanField(_('approved'), default=False)
+    is_verified = models.BooleanField(_('verified'), default=False)
+    last_login_ip = models.GenericIPAddressField(_('last login IP'), null=True, blank=True)
+    failed_login_attempts = models.PositiveSmallIntegerField(_('failed login attempts'), default=0)
+    last_password_change = models.DateTimeField(_('last password change'), null=True, blank=True)
     
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
     
-    # Use email as the username field
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
     
     class Meta:
-        verbose_name = 'User'
-        verbose_name_plural = 'Users'
-        ordering = ['-date_joined']
-    
+        verbose_name = _('User')
+        verbose_name_plural = _('Users')
+        
     def __str__(self):
         return f"{self.get_full_name()} ({self.email})"
     
     def get_full_name(self):
-        """Return the full name of the user"""
-        full_name = f"{self.first_name} {self.last_name}".strip()
-        return full_name or self.username
+        """Return the first_name plus the last_name, with a space in between."""
+        full_name = f'{self.first_name} {self.last_name}'
+        return full_name.strip()
     
     def get_short_name(self):
-        """Return the short name for the user"""
-        return self.first_name or self.username
+        """Return the short name for the user."""
+        return self.first_name
     
-    def verify_email(self):
-        """Mark email as verified"""
-        self.email_verified = True
-        self.email_verified_at = timezone.now()
-        self.save(update_fields=['email_verified', 'email_verified_at'])
+    # RBAC Methods
+    def has_module_permission(self, module, permission):
+        """Check if user has specific permission for a module"""
+        if self.is_superuser:
+            return True
+        if not self.role or not self.role.is_active:
+            return False
+        return self.role.has_permission(module, permission)
+    
+    def get_accessible_modules(self):
+        """Get list of modules user can access"""
+        if self.is_superuser:
+            return list(Role.MODULE_PERMISSIONS.keys())
+        if not self.role:
+            return []
+        
+        accessible = []
+        for module in Role.MODULE_PERMISSIONS.keys():
+            if self.has_module_permission(module, 'view'):
+                accessible.append(module)
+        return accessible
+    
+    def get_role_name(self):
+        """Get user's role name"""
+        if self.is_superuser:
+            return 'Super Admin'
+        return self.role.name if self.role else 'No Role'
+    
+    def can_manage_users(self):
+        """Check if user can manage other users"""
+        return self.has_module_permission('user_management', 'manage_all')
+    
+    def can_access_ai_services(self):
+        """Check if user can access AI services"""
+        return self.has_module_permission('ai_services', 'use')
 
 
-class UserProfile(BaseModel):
+class AuditLog(models.Model):
     """
-    Extended user profile information
+    Audit log model for tracking user activities and system changes
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    ACTION_TYPES = [
+        ('login', _('Login')),
+        ('logout', _('Logout')),
+        ('create', _('Create')),
+        ('update', _('Update')),
+        ('delete', _('Delete')),
+        ('view', _('View')),
+        ('export', _('Export')),
+        ('import', _('Import')),
+        ('permission_change', _('Permission Change')),
+        ('system_config', _('System Configuration'))
+    ]
     
-    # Additional Professional Information
-    linkedin_url = models.URLField(blank=True)
-    website = models.URLField(blank=True)
-    
-    # Address Information
-    address_line1 = models.CharField(max_length=255, blank=True)
-    address_line2 = models.CharField(max_length=255, blank=True)
-    city = models.CharField(max_length=100, blank=True)
-    state_province = models.CharField(max_length=100, blank=True)
-    postal_code = models.CharField(max_length=20, blank=True)
-    country = models.CharField(max_length=100, blank=True)
-    
-    # Professional Interests
-    services_of_interest = models.ManyToManyField(
-        'core.ServiceCategory', 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
-        related_name='interested_users'
+        related_name='audit_logs'
     )
-    industries_of_interest = models.ManyToManyField(
-        'core.IndustrySector',
-        blank=True,
-        related_name='interested_users'
-    )
-    
-    # Communication Preferences
-    preferred_contact_method = models.CharField(
-        max_length=20,
-        choices=[
-            ('email', 'Email'),
-            ('phone', 'Phone'),
-            ('linkedin', 'LinkedIn'),
-        ],
-        default='email'
-    )
-    
-    # Privacy Settings
-    profile_visibility = models.CharField(
-        max_length=20,
-        choices=[
-            ('public', 'Public'),
-            ('private', 'Private'),
-            ('contacts', 'Contacts Only'),
-        ],
-        default='private'
-    )
+    action = models.CharField(_('action'), max_length=20, choices=ACTION_TYPES)
+    module = models.CharField(_('module'), max_length=50, blank=True)
+    object_type = models.CharField(_('object type'), max_length=100, blank=True)
+    object_id = models.CharField(_('object ID'), max_length=255, blank=True)
+    description = models.TextField(_('description'), blank=True)
+    ip_address = models.GenericIPAddressField(_('IP address'), null=True, blank=True)
+    user_agent = models.TextField(_('user agent'), blank=True)
+    additional_data = models.JSONField(_('additional data'), default=dict, blank=True)
+    timestamp = models.DateTimeField(_('timestamp'), auto_now_add=True)
     
     class Meta:
-        verbose_name = 'User Profile'
-        verbose_name_plural = 'User Profiles'
+        verbose_name = _('Audit Log')
+        verbose_name_plural = _('Audit Logs')
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['action', 'timestamp']),
+            models.Index(fields=['module', 'timestamp']),
+        ]
     
     def __str__(self):
-        return f"Profile of {self.user.get_full_name()}"
-
-
-class EmailVerificationToken(BaseModel):
-    """
-    Email verification tokens for user registration
-    """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='verification_tokens')
-    token = models.UUIDField(default=uuid.uuid4, unique=True)
-    expires_at = models.DateTimeField()
-    used = models.BooleanField(default=False)
-    used_at = models.DateTimeField(null=True, blank=True)
+        user_name = self.user.get_full_name() if self.user else 'Anonymous'
+        return f"{user_name} - {self.get_action_display()} - {self.timestamp}"
     
-    class Meta:
-        verbose_name = 'Email Verification Token'
-        verbose_name_plural = 'Email Verification Tokens'
-    
-    def __str__(self):
-        return f"Verification token for {self.user.email}"
-    
-    def is_expired(self):
-        return timezone.now() > self.expires_at
-    
-    def mark_used(self):
-        """Mark token as used"""
-        self.used = True
-        self.used_at = timezone.now()
-        self.save(update_fields=['used', 'used_at'])
-
-
-class PasswordResetToken(BaseModel):
-    """
-    Password reset tokens
-    """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_tokens')
-    token = models.UUIDField(default=uuid.uuid4, unique=True)
-    expires_at = models.DateTimeField()
-    used = models.BooleanField(default=False)
-    used_at = models.DateTimeField(null=True, blank=True)
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
-    
-    class Meta:
-        verbose_name = 'Password Reset Token'
-        verbose_name_plural = 'Password Reset Tokens'
-    
-    def __str__(self):
-        return f"Password reset token for {self.user.email}"
-    
-    def is_expired(self):
-        return timezone.now() > self.expires_at
-    
-    def mark_used(self):
-        """Mark token as used"""
-        self.used = True
-        self.used_at = timezone.now()
-        self.save(update_fields=['used', 'used_at'])
+    @classmethod
+    def log_activity(cls, user, action, module='', object_type='', object_id='', 
+                     description='', ip_address=None, user_agent='', additional_data=None):
+        """Create an audit log entry"""
+        return cls.objects.create(
+            user=user,
+            action=action,
+            module=module,
+            object_type=object_type,
+            object_id=str(object_id) if object_id else '',
+            description=description,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            additional_data=additional_data or {}
+        )

@@ -1,5 +1,5 @@
 """
-URL configuration for authentication app
+URL patterns for REJLERS RBAC authentication system
 """
 
 from django.urls import path
@@ -12,19 +12,26 @@ urlpatterns = [
     # Authentication endpoints
     path('register/', views.UserRegistrationView.as_view(), name='register'),
     path('login/', views.CustomTokenObtainPairView.as_view(), name='login'),
-    path('logout/', views.logout_view, name='logout'),
+    path('logout/', views.LogoutView.as_view(), name='logout'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
-    # User profile endpoints
-    path('user/', views.user_detail, name='user_detail'),
+    # User management endpoints
     path('profile/', views.UserProfileView.as_view(), name='user_profile'),
-    
-    # Password management
     path('change-password/', views.ChangePasswordView.as_view(), name='change_password'),
-    path('password-reset/', views.PasswordResetRequestView.as_view(), name='password_reset_request'),
-    path('password-reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('dashboard/', views.user_dashboard_data, name='user_dashboard'),
     
-    # Email verification
-    path('verify-email/', views.EmailVerificationView.as_view(), name='verify_email'),
-    path('resend-verification/', views.resend_verification_email, name='resend_verification'),
+    # RBAC management endpoints (admin only)
+    path('roles/', views.RoleListView.as_view(), name='role_list'),
+    path('roles/<uuid:pk>/', views.RoleDetailView.as_view(), name='role_detail'),
+    path('users/', views.UserListView.as_view(), name='user_list'),
+    path('users/<uuid:pk>/', views.UserDetailView.as_view(), name='user_detail'),
+    
+    # Permission checking
+    path('check-permission/', views.UserPermissionCheckView.as_view(), name='check_permission'),
+    
+    # Audit logs (admin only)
+    path('audit-logs/', views.AuditLogListView.as_view(), name='audit_logs'),
+    
+    # Health check
+    path('health/', views.health_check, name='health_check'),
 ]
