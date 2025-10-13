@@ -1,0 +1,1 @@
+# contacts app init file

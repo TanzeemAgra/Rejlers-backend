@@ -1,0 +1,273 @@
+# REJLERS Django Backend .gitignore
+# ===========================================
+# This file prevents sensitive and unnecessary files from being committed to Git
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+.env/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Django Static Files
+/static/
+/staticfiles/
+/media/
+
+# Django Migrations (uncomment to ignore migrations)
+# */migrations/*.py
+# */migrations/*.pyc
+# !*/migrations/__init__.py
+
+# Environment Variables - CRITICAL SECURITY
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+.env.backup
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Secret Keys and Sensitive Configuration
+secret_key.txt
+secrets/
+config/secrets/
+*.pem
+*.key
+*.crt
+*.p12
+
+# AWS Credentials
+.aws/
+aws-credentials.json
+
+# Google Cloud Credentials
+google-cloud-key.json
+service-account-key.json
+
+# Email Configuration
+email-config.json
+sendgrid.env
+
+# Logs and Debug Files
+logs/
+*.log
+debug.log
+error.log
+access.log
+django.log
+
+# Temporary Files
+tmp/
+temp/
+.tmp/
+
+# Backup Files
+*.bak
+*.backup
+*.sql
+backups/
+dumps/
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Redis Dumps
+dump.rdb
+
+# Media Files (uploaded by users)
+media/uploads/
+media/documents/
+media/images/
+media/files/
+
+# Cache Files
+.cache/
+*.cache
+
+# Compiled Files
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / Packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+test-reports/
+
+# Documentation Build
+docs/_build/
+site/
+
+# Local Configuration Overrides
+local_config.py
+local_settings_override.py
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Railway Deployment
+railway.json
+
+# Vercel
+.vercel
+
+# Heroku
+Procfile.local
+
+# Node.js (if any frontend build tools are used)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Security Files
+*.p8
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# API Keys and Tokens
+api_keys.txt
+tokens.json
+credentials.json
+auth_tokens.py
+
+# Production Configurations
+production_config.py
+staging_config.py
+
+# SSL Certificates
+*.crt
+*.key
+*.pem
+ssl/
+
+# Monitoring and Analytics
+newrelic.ini
+datadog.yaml
+
+# Custom REJLERS Specific Files
+rejlers_config.json
+company_secrets.py
+
+# Database Migrations (Uncomment if you don't want to track migrations)
+# apps/*/migrations/0*.py
+
+# Generated Files
+generated/
+auto_generated/
+
+# Temporary uploads
+tmp_uploads/
+
+# Error Reports
+error_reports/
+crash_logs/
+
+# Performance Reports
+performance/
+profiling/
