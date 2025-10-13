@@ -117,22 +117,34 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@rejlers.com')
 SERVER_EMAIL = config('SERVER_EMAIL', default='admin@rejlers.com')
 ADMIN_EMAIL = config('ADMIN_EMAIL', default='admin@rejlers.com')
 
-# Cache - Redis for production
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': config('REDIS_URL'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 50,
-                'retry_on_timeout': True,
-            },
-            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+# Cache Configuration - Redis with fallback
+REDIS_URL = config('REDIS_URL', default=None)
+
+if REDIS_URL:
+    # Use Redis if available
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 50,
+                    'retry_on_timeout': True,
+                },
+                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+                'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+            }
         }
     }
-}
+else:
+    # Fallback to database caching
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'cache_table',
+        }
+    }
 
 # Session configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
