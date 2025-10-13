@@ -74,13 +74,18 @@ db.sqlite3-journal
 # */migrations/*.pyc
 # !*/migrations/__init__.py
 
-# Environment Variables - CRITICAL SECURITY
+# Environment Variables - CRITICAL SECURITY - NEVER COMMIT THESE!
 .env
+.env.*
 .env.local
 .env.development
 .env.staging
 .env.production
 .env.backup
+.env.test
+*.env
+!.env.example
+!railway.env.example
 
 # Database
 *.db
@@ -230,11 +235,18 @@ Thumbs.db
 google-services.json
 GoogleService-Info.plist
 
-# API Keys and Tokens
-api_keys.txt
-tokens.json
-credentials.json
-auth_tokens.py
+# API Keys and Tokens - EXTREMELY SENSITIVE
+api_keys.*
+tokens.*
+credentials.*
+auth_tokens.*
+*_api_key*
+*_token*
+*_secret*
+*_password*
+*_credential*
+railway_secrets.*
+production_secrets.*
 
 # Production Configurations
 production_config.py
