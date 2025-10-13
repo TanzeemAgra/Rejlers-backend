@@ -1,5 +1,5 @@
-# REJLERS Backend - Railway Production Requirements (Railway-Optimized)
-# Minimal & compatible dependencies for successful Railway deployment
+# REJLERS Backend - Railway Production Requirements (Minimal & Compatible)
+# Optimized for Railway deployment with only essential packages
 
 # ==========================================
 # CORE DJANGO & DRF
@@ -9,7 +9,7 @@ djangorestframework==3.14.0
 django-cors-headers==4.3.1
 
 # ==========================================
-# DATABASE SUPPORT (ESSENTIAL)
+# DATABASE SUPPORT
 # ==========================================
 psycopg2-binary==2.9.7
 dj-database-url==2.1.0
@@ -38,7 +38,7 @@ django-environ==0.11.2
 django-filter==23.3
 
 # ==========================================
-# FILE HANDLING & STORAGE (BASIC)
+# FILE HANDLING & STORAGE
 # ==========================================
 Pillow==10.0.1
 django-storages==1.14.2
@@ -49,7 +49,7 @@ django-storages==1.14.2
 openai==0.28.1
 
 # ==========================================
-# UTILITIES (ESSENTIAL)
+# UTILITIES
 # ==========================================
 requests==2.31.0
 python-slugify==8.0.1
@@ -67,6 +67,6 @@ gunicorn==21.2.0
 whitenoise==6.6.0
 
 # ==========================================
-# MONITORING (OPTIONAL)
+# LOGGING & MONITORING (ESSENTIAL)
 # ==========================================
 sentry-sdk[django]==1.38.0
