@@ -1,23 +1,19 @@
 # Railway Nixpacks Configuration for REJLERS Backend
-# This file forces Railway to use Nixpacks instead of Docker
-
-[providers]
-python = "3.11.6"
 
 [variables]
-NIXPACKS_PYTHON_VERSION = "3.11.6"
-PYTHONUNBUFFERED = "1" 
+PYTHONUNBUFFERED = "1"
 PYTHONDONTWRITEBYTECODE = "1"
-PIP_NO_CACHE_DIR = "1"
-
-[phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "python311Packages.setuptools", "python311Packages.wheel"]
 
 [phases.install]
-cmd = "pip install --upgrade pip setuptools wheel && pip install -r requirements.txt"
+cmds = [
+    "pip install --upgrade pip",
+    "pip install -r requirements.txt"
+]
 
 [phases.build]
-cmd = "python manage.py collectstatic --noinput --clear"
+cmds = [
+    "python manage.py collectstatic --noinput --clear"
+]
 
 [start]
-cmd = "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --max-requests 1000 --max-requests-jitter 50"
+cmd = "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
