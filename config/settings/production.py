@@ -13,8 +13,9 @@ from sentry_sdk.integrations.django import DjangoIntegration
 DEBUG = config('DEBUG', default=False, cast=bool)  # Allow override for Railway
 
 ALLOWED_HOSTS = [
-    config('PRODUCTION_HOST', default='api.rejlers.com'),
+    config('PRODUCTION_HOST', default='rejlers-backend-production.up.railway.app'),
     config('STAGING_HOST', default='staging-api.rejlers.com'),
+    'rejlers-backend-production.up.railway.app',  # Your Railway backend
     '.railway.app',  # Railway deployment (wildcard)
     '.vercel.app',  # Vercel deployment
     '127.0.0.1',  # Local testing
@@ -25,7 +26,7 @@ ALLOWED_HOSTS = [
 # Railway provides DATABASE_URL automatically
 import dj_database_url
 
-DATABASE_URL = config('DATABASE_URL', default=None)
+DATABASE_URL = config('DATABASE_URL', default='postgresql://postgres:nfeAvnnoFsSJDcJDzXhsQkjKNaQQMMGP@switchyard.proxy.rlwy.net:50335/railway')
 
 if DATABASE_URL:
     # Use Railway's DATABASE_URL
@@ -55,17 +56,41 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    config('FRONTEND_URL', default='https://rejlers.com'),
+    config('FRONTEND_URL', default='https://rejlers-frontend.vercel.app'),
     config('STAGING_FRONTEND_URL', default='https://staging.rejlers.com'),
     'https://rejlers-frontend.vercel.app',  # Your deployed frontend
     'https://rejlers.vercel.app',
     'https://www.rejlers.se',
+    'http://localhost:3000',  # Local Docker development
+    'http://127.0.0.1:3000',  # Local development alternative
 ]
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.vercel\.app$",
     r"^https://.*\.railway\.app$",
     r"^https://.*\.rejlers\.com$",
+]
+
+# Additional CORS headers for API requests
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
 ]
 
 # Security Settings (Relaxed for Railway deployment)
