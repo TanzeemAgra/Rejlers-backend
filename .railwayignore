@@ -1,0 +1,16 @@
+# Railway ignore patterns
+Dockerfile*
+docker-compose*
+.dockerignore
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+node_modules/
+.env
+.env.local
+logs/
+*.log
+.DS_Store
+Thumbs.db
