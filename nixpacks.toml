@@ -1,6 +1,23 @@
-# Force Nixpacks for Python/Django
-[variables]
-PYTHONUNBUFFERED = "1"
+# Smart Railway Configuration for REJLERS Backend
+[phases.setup]
+nixPkgs = ['python311', 'postgresql', 'gcc']
+
+[phases.install] 
+cmds = [
+    'pip install --upgrade pip',
+    'pip install -r requirements.txt'
+]
+
+[phases.build]
+cmds = [
+    'echo "🔧 Railway Build Phase - Creating directories"',
+    'mkdir -p static staticfiles media',
+    'echo "📦 Build Phase Complete"'
+]
 
 [start]
-cmd = "gunicorn config.wsgi:application"
+cmd = 'python manage_railway.py web'
+
+[variables]
+PYTHONUNBUFFERED = "1"
+DJANGO_SETTINGS_MODULE = "config.settings.railway"

@@ -1,2 +1,2 @@
-release: python manage.py migrate --noinput
-web: python manage.py runserver 0.0.0.0:$PORT
+release: python manage_railway.py
+web: python manage_railway.py web
