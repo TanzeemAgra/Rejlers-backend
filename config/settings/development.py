@@ -50,17 +50,24 @@ if config('USE_SQLITE', default=False, cast=bool):
         }
     }
 
-# CORS Settings for Development
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development!
-CORS_ALLOW_CREDENTIALS = True
+# CORS Settings for Development - Soft Coded Configuration
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=True, cast=bool)
+CORS_ALLOW_CREDENTIALS = config('CORS_ALLOW_CREDENTIALS', default=True, cast=bool)
 
+# Soft-coded CORS origins from environment
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Next.js frontend
-    "http://localhost:3001",  # Testing frontend
+    "http://localhost:3001",  # Testing frontend  
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
 ]
 
+# Add custom origins from environment variable
+custom_origins = config('CUSTOM_CORS_ORIGINS', default='')
+if custom_origins:
+    CORS_ALLOWED_ORIGINS.extend([origin.strip() for origin in custom_origins.split(',') if origin.strip()])
+
+# Comprehensive CORS headers for frontend integration
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -71,7 +78,22 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'cache-control',
+    'pragma',
+    'expires',
 ]
+
+# Additional CORS configuration for better frontend support
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
 # Email Backend for Development
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

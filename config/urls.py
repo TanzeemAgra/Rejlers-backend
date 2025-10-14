@@ -24,8 +24,15 @@ def api_root(request):
         'endpoints': {
             'authentication': '/api/v1/auth/',
             'contacts': '/api/v1/contacts/',
-            'services': '/api/v1/services/',
             'hr_management': '/api/v1/hr/',
+            'projects': '/api/projects/',
+            'finance': '/api/finance/',
+            'contracts': '/api/contracts/',
+            'supply_chain': '/api/supply-chain/',
+            'sales': '/api/sales/',
+            'reporting': '/api/reporting/',
+            'hse_compliance': '/api/hse/',
+            'rto_apc': '/api/rto/',
             'documentation': '/api/docs/',
         },
         'timestamp': datetime.datetime.now().isoformat()
@@ -37,8 +44,19 @@ api_v1_patterns = [
     path('auth/', include('apps.authentication.urls')),
     path('contacts/', include('apps.contacts.urls')),
     path('hr/', include('apps.hr_management.urls')),
-    # path('services/', include('apps.services.urls')),  # Disabled - empty app
     path('core/', include('apps.core.urls')),
+]
+
+# Business Module URL patterns
+business_api_patterns = [
+    path('projects/', include('apps.projects.urls')),
+    path('finance/', include('apps.finance.urls')),
+    path('contracts/', include('apps.contracts.urls')),
+    path('supply-chain/', include('apps.supply_chain.urls')),
+    path('sales/', include('apps.sales.urls')),
+    path('reporting/', include('apps.reporting.urls')),
+    path('hse/', include('apps.hse_compliance.urls')),
+    path('rto/', include('apps.rto_apc.urls')),
 ]
 
 # Main URL patterns
@@ -50,8 +68,11 @@ urlpatterns = [
     path('health/', health_check, name='health-check'),
     path('ready/', ready_check, name='ready-check'),
     
-    # API v1
+    # API v1 - Core APIs
     path('api/v1/', include(api_v1_patterns)),
+    
+    # Business Module APIs
+    path('api/', include(business_api_patterns)),
     
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

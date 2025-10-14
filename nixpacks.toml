@@ -1,0 +1,16 @@
+# Railway Nixpacks Configuration for REJLERS Backend
+[variables]
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"
+
+[phases.build]
+cmds = [
+    "pip install --upgrade pip",
+    "pip install -r requirements.txt"
+]
+
+[phases.install]
+cmds = ["echo 'Installation phase completed'"]
+
+[start]
+cmd = "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
