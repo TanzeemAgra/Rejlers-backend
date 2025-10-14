@@ -1,19 +1,6 @@
-# Railway Nixpacks Configuration for REJLERS Backend
-
+# Force Nixpacks for Python/Django
 [variables]
 PYTHONUNBUFFERED = "1"
-PYTHONDONTWRITEBYTECODE = "1"
-
-[phases.install]
-cmds = [
-    "pip install --upgrade pip",
-    "pip install -r requirements.txt"
-]
-
-[phases.build]
-cmds = [
-    "python manage.py collectstatic --noinput --clear"
-]
 
 [start]
-cmd = "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+cmd = "gunicorn config.wsgi:application"
