@@ -17,6 +17,10 @@ django-allauth==0.57.0
 # API Documentation
 drf-spectacular==0.26.5
 
+# File Storage
+django-storages==1.14.2
+boto3==1.29.7
+
 # Configuration Management
 python-decouple==3.8
 django-environ==0.11.2
