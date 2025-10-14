@@ -57,6 +57,7 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     config('FRONTEND_URL', default='https://rejlers.com'),
     config('STAGING_FRONTEND_URL', default='https://staging.rejlers.com'),
+    'https://rejlers-frontend.vercel.app',  # Your deployed frontend
     'https://rejlers.vercel.app',
     'https://www.rejlers.se',
 ]
