@@ -25,6 +25,7 @@ def api_root(request):
             'authentication': '/api/v1/auth/',
             'contacts': '/api/v1/contacts/',
             'services': '/api/v1/services/',
+            'hr_management': '/api/v1/hr/',
             'documentation': '/api/docs/',
         },
         'timestamp': datetime.datetime.now().isoformat()
@@ -35,6 +36,7 @@ api_v1_patterns = [
     path('', api_root, name='api-root'),
     path('auth/', include('apps.authentication.urls')),
     path('contacts/', include('apps.contacts.urls')),
+    path('hr/', include('apps.hr_management.urls')),
     # path('services/', include('apps.services.urls')),  # Disabled - empty app
     path('core/', include('apps.core.urls')),
 ]
