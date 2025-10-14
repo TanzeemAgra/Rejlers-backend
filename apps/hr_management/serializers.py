@@ -4,7 +4,11 @@ API serializers for HR Management models with proper validation and nested relat
 """
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Department, Position, Employee, TimeOff, Performance
+from .models import (
+    Department, Position, Employee, TimeOff, Performance,
+    WorkSchedule, AttendanceRecord, AttendancePattern,
+    AttendanceAlert, AttendanceReport
+)
 
 User = get_user_model()
 
