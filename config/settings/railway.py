@@ -5,11 +5,13 @@ import os
 import sys
 from .production import *
 
-# Railway Environment Detection
+# Railway Environment Detection with Advanced Intelligence
 RAILWAY_ENVIRONMENT = os.getenv('RAILWAY_ENVIRONMENT_NAME', '')
 RAILWAY_PROJECT_ID = os.getenv('RAILWAY_PROJECT_ID', '')
 IS_RAILWAY_BUILD = os.getenv('NIXPACKS_PLAN_PATH') is not None
 IS_RAILWAY_RUNTIME = RAILWAY_PROJECT_ID and not IS_RAILWAY_BUILD
+IS_MIGRATION_COMMAND = 'migrate' in sys.argv
+IS_COLLECTSTATIC_COMMAND = 'collectstatic' in sys.argv
 
 # Smart Database Configuration for Railway
 if IS_RAILWAY_BUILD:

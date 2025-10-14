@@ -9,13 +9,22 @@ import subprocess
 import time
 
 def detect_environment():
-    """Detect the current deployment environment"""
+    """Detect the current deployment environment with advanced intelligence"""
+    is_railway = bool(os.getenv('RAILWAY_PROJECT_ID'))
+    is_nixpacks_build = bool(os.getenv('NIXPACKS_PLAN_PATH'))
+    is_docker_build = bool(os.getenv('DOCKER_BUILDKIT'))
+    
     return {
-        'is_railway_build': bool(os.getenv('NIXPACKS_PLAN_PATH')),
-        'is_railway_runtime': bool(os.getenv('RAILWAY_PROJECT_ID')) and not bool(os.getenv('NIXPACKS_PLAN_PATH')),
+        'is_railway_build': is_nixpacks_build,
+        'is_railway_runtime': is_railway and not is_nixpacks_build,
+        'is_docker_build': is_docker_build,
+        'is_local': not is_railway and not is_docker_build,
         'railway_env': os.getenv('RAILWAY_ENVIRONMENT_NAME', 'production'),
         'railway_project': os.getenv('RAILWAY_PROJECT_ID', ''),
-        'port': os.getenv('PORT', '8000')
+        'port': os.getenv('PORT', '8000'),
+        'python_path': os.getenv('PYTHON', 'python'),
+        'virtual_env': os.getenv('VIRTUAL_ENV', ''),
+        'nixpacks_venv': '/opt/venv' if os.path.exists('/opt/venv') else None
     }
 
 def run_command(command, description, ignore_errors=False):
@@ -35,18 +44,31 @@ def run_command(command, description, ignore_errors=False):
 def main():
     env = detect_environment()
     
-    print("🚀 REJLERS Backend - Railway Smart Startup")
+    print("🚀 REJLERS Backend - Advanced Railway Startup")
     print(f"   Build Phase: {env['is_railway_build']}")
     print(f"   Runtime Phase: {env['is_railway_runtime']}")
+    print(f"   Docker Build: {env['is_docker_build']}")
+    print(f"   Local Dev: {env['is_local']}")
     print(f"   Environment: {env['railway_env']}")
     print(f"   Project ID: {env['railway_project'][:8]}..." if env['railway_project'] else "   Project ID: None")
+    print(f"   Virtual ENV: {env['nixpacks_venv'] or env['virtual_env'] or 'None'}")
+    
+    # Set Python executable path for Railway
+    if env['nixpacks_venv'] and os.path.exists(f"{env['nixpacks_venv']}/bin/python"):
+        python_path = f"{env['nixpacks_venv']}/bin/python"
+        pip_path = f"{env['nixpacks_venv']}/bin/pip"
+        print(f"   Using Nixpacks Python: {python_path}")
+    else:
+        python_path = env['python_path']
+        pip_path = 'pip'
+        print(f"   Using System Python: {python_path}")
     
     # Set Django settings based on environment
-    if env['is_railway_build']:
+    if env['is_railway_build'] or env['is_docker_build']:
         print("🔧 Build Phase: Using railway settings")
         os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings.railway'
     elif env['is_railway_runtime']:
-        print("🏃 Runtime Phase: Using production settings")
+        print("🏃 Runtime Phase: Using production settings") 
         os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings.production'
     else:
         print("🏠 Local Development")
@@ -86,10 +108,15 @@ def main():
         if not run_command('python manage.py check --deploy', "Final deployment health check", ignore_errors=True):
             print("⚠️ Health check had warnings, but continuing")
     
-    # Start web server
+    # Start web server with correct Python path
     if len(sys.argv) > 1 and sys.argv[1] == 'web' or env['is_railway_runtime']:
         print(f"🌐 Starting Django web server on port {env['port']}")
-        os.execvp('python', ['python', 'manage.py', 'runserver', f"0.0.0.0:{env['port']}"])
+        
+        # Use proper Python executable
+        if env['nixpacks_venv'] and os.path.exists(f"{env['nixpacks_venv']}/bin/python"):
+            os.execv(f"{env['nixpacks_venv']}/bin/python", [f"{env['nixpacks_venv']}/bin/python", 'manage.py', 'runserver', f"0.0.0.0:{env['port']}"])
+        else:
+            os.execvp('python', ['python', 'manage.py', 'runserver', f"0.0.0.0:{env['port']}"])
     
     print("✅ Startup sequence complete")
     return 0
