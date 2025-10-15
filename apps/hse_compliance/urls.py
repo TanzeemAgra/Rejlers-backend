@@ -9,5 +9,5 @@ router.register(r'assessments', views.ComplianceAssessmentViewSet)
 router.register(r'monitoring', views.EnvironmentalMonitoringViewSet)
 
 urlpatterns = [
-    path('api/hse/', include(router.urls)),
+    path('', include(router.urls)),
 ]

@@ -10,5 +10,5 @@ router.register(r'alarms', views.AlarmViewSet)
 router.register(r'maintenance', views.MaintenanceScheduleViewSet)
 
 urlpatterns = [
-    path('api/rto/', include(router.urls)),
+    path('', include(router.urls)),
 ]

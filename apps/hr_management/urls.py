@@ -32,5 +32,5 @@ router.register(r'team-dashboard', TeamDashboardViewSet, basename='team-dashboar
 app_name = 'hr_management'
 
 urlpatterns = [
-    path('api/v1/hr/', include(router.urls)),
+    path('', include(router.urls)),
 ]

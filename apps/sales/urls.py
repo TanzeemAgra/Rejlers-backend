@@ -9,5 +9,5 @@ router.register(r'campaigns', views.CampaignViewSet)
 router.register(r'customers', views.CustomerViewSet)
 
 urlpatterns = [
-    path('api/sales/', include(router.urls)),
+    path('', include(router.urls)),
 ]

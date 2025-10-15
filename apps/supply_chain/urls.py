@@ -8,5 +8,5 @@ router.register(r'purchase-orders', views.PurchaseOrderViewSet)
 router.register(r'inventory', views.InventoryViewSet)
 
 urlpatterns = [
-    path('api/supply-chain/', include(router.urls)),
+    path('', include(router.urls)),
 ]

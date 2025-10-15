@@ -10,5 +10,5 @@ router.register(r'projects', views.ProjectViewSet)
 router.register(r'tasks', views.TaskViewSet)
 
 urlpatterns = [
-    path('api/projects/', include(router.urls)),
+    path('', include(router.urls)),
 ]

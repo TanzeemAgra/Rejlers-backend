@@ -7,5 +7,5 @@ router.register(r'contracts', views.ContractViewSet)
 router.register(r'documents', views.LegalDocumentViewSet)
 
 urlpatterns = [
-    path('api/contracts/', include(router.urls)),
+    path('', include(router.urls)),
 ]

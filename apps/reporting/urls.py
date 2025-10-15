@@ -8,5 +8,5 @@ router.register(r'reports', views.GeneratedReportViewSet)
 router.register(r'kpis', views.KPIViewSet)
 
 urlpatterns = [
-    path('api/reporting/', include(router.urls)),
+    path('', include(router.urls)),
 ]
