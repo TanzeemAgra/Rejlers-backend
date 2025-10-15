@@ -14,6 +14,20 @@ from django.views.decorators.cache import cache_page
 from apps.core.health_views import health_check, ready_check
 import datetime
 
+def root_view(request):
+    """Root endpoint for the application"""
+    return JsonResponse({
+        'message': 'REJLERS Backend API Server',
+        'status': 'running',
+        'version': '1.0.0',
+        'endpoints': {
+            'health': '/health/',
+            'api': '/api/v1/',
+            'admin': '/admin/',
+            'docs': '/api/docs/',
+        }
+    })
+
 def api_root(request):
     """API root endpoint with basic information"""
     return JsonResponse({
@@ -41,6 +55,7 @@ def api_root(request):
 # API URL patterns
 api_v1_patterns = [
     path('', api_root, name='api-root'),
+    path('health/', health_check, name='api-health-check'),
     path('auth/', include('apps.authentication.urls')),
     path('contacts/', include('apps.contacts.urls')),
     path('hr/', include('apps.hr_management.urls')),
@@ -61,6 +76,9 @@ business_api_patterns = [
 
 # Main URL patterns
 urlpatterns = [
+    # Root endpoint
+    path('', root_view, name='root'),
+    
     # Admin interface
     path('admin/', admin.site.urls),
     
