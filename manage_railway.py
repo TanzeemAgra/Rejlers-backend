@@ -110,13 +110,13 @@ def main():
     
     # Start web server with correct Python path
     if len(sys.argv) > 1 and sys.argv[1] == 'web' or env['is_railway_runtime']:
-        print(f"🌐 Starting Django web server on port {env['port']}")
+        print(f"🌐 Starting Gunicorn web server on port {env['port']}")
         
-        # Use proper Python executable
-        if env['nixpacks_venv'] and os.path.exists(f"{env['nixpacks_venv']}/bin/python"):
-            os.execv(f"{env['nixpacks_venv']}/bin/python", [f"{env['nixpacks_venv']}/bin/python", 'manage.py', 'runserver', f"0.0.0.0:{env['port']}"])
+        # Use Gunicorn for production
+        if env['nixpacks_venv'] and os.path.exists(f"{env['nixpacks_venv']}/bin/gunicorn"):
+            os.execv(f"{env['nixpacks_venv']}/bin/gunicorn", [f"{env['nixpacks_venv']}/bin/gunicorn", 'config.wsgi:application', '--bind', f"0.0.0.0:{env['port']}"])
         else:
-            os.execvp('python', ['python', 'manage.py', 'runserver', f"0.0.0.0:{env['port']}"])
+            os.execvp('gunicorn', ['gunicorn', 'config.wsgi:application', '--bind', f"0.0.0.0:{env['port']}"])
     
     print("✅ Startup sequence complete")
     return 0
