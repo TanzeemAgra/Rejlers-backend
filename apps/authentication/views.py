@@ -758,3 +758,286 @@ def check_module_permission(request):
         'has_permission': has_permission,
         'user_role': request.user.get_role_name()
     })
+
+
+# ADMIN USER MANAGEMENT ENDPOINTS WITH SOFT CODING
+
+class AdminUserCreateView(generics.CreateAPIView):
+    """
+    Admin user creation endpoint with AI-powered features and soft coding
+    """
+    queryset = User.objects.all()
+    serializer_class = UserRegistrationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def create(self, request, *args, **kwargs):
+        # Check admin permissions
+        if not request.user.has_module_permission('user_management', 'create'):
+            raise PermissionDenied(_('You do not have permission to create users.'))
+        
+        # Soft coding: Get configuration from settings or environment
+        from django.conf import settings
+        user_creation_config = getattr(settings, 'USER_CREATION_CONFIG', {
+            'auto_approve': False,
+            'auto_verify': False,
+            'default_role_id': None,
+            'send_welcome_email': True,
+            'require_email_verification': True,
+            'password_policy': {
+                'min_length': 8,
+                'require_uppercase': True,
+                'require_lowercase': True,
+                'require_numbers': True,
+                'require_special_chars': False
+            }
+        })
+        
+        # Validate request data
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Create user with admin privileges
+        user_data = serializer.validated_data.copy()
+        
+        # Apply soft coding configuration
+        if user_creation_config.get('auto_approve', False):
+            user_data['is_approved'] = True
+        if user_creation_config.get('auto_verify', False):
+            user_data['is_verified'] = True
+            
+        # Set default role if specified in config
+        if not user_data.get('role') and user_creation_config.get('default_role_id'):
+            try:
+                default_role = Role.objects.get(id=user_creation_config['default_role_id'])
+                user_data['role'] = default_role
+            except Role.DoesNotExist:
+                pass
+        
+        # Create user
+        user = serializer.save(**user_data)
+        
+        # Log admin user creation
+        AuditLog.log_activity(
+            user=request.user,
+            action='create',
+            module='user_management',
+            object_type='User',
+            object_id=user.id,
+            description=f'Admin created new user: {user.email}',
+            ip_address=self.get_client_ip(request),
+            additional_data={
+                'created_by': request.user.get_full_name(),
+                'ai_recommended_role': request.data.get('ai_recommended_role'),
+                'creation_method': 'admin_interface'
+            }
+        )
+        
+        # Return enhanced response
+        user_serializer = UserSerializer(user)
+        return Response({
+            'message': _('User created successfully by admin.'),
+            'user': user_serializer.data,
+            'configuration_applied': {
+                'auto_approved': user_data.get('is_approved', False),
+                'auto_verified': user_data.get('is_verified', False),
+                'role_assigned': user.role.name if user.role else None
+            }
+        }, status=status.HTTP_201_CREATED)
+    
+    def get_client_ip(self, request):
+        """Get client IP address"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
+
+
+class BulkUserCreateView(APIView):
+    """
+    Bulk user creation endpoint with intelligent processing and soft coding
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        # Check admin permissions
+        if not request.user.has_module_permission('user_management', 'manage_all'):
+            raise PermissionDenied(_('You do not have permission for bulk user operations.'))
+        
+        # Soft coding: Get bulk import configuration
+        from django.conf import settings
+        bulk_config = getattr(settings, 'BULK_IMPORT_CONFIG', {
+            'max_users_per_batch': 100,
+            'auto_generate_passwords': True,
+            'password_length': 12,
+            'auto_approve_all': False,
+            'auto_verify_all': False,
+            'skip_invalid_records': True,
+            'send_bulk_notifications': False,
+            'default_department': 'General',
+            'ai_role_matching': True
+        })
+        
+        users_data = request.data.get('users', [])
+        if not users_data:
+            return Response(
+                {'error': 'No user data provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Apply batch size limit from configuration
+        max_batch_size = bulk_config.get('max_users_per_batch', 100)
+        if len(users_data) > max_batch_size:
+            return Response(
+                {'error': f'Batch size exceeds maximum limit of {max_batch_size} users'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        created_users = []
+        failed_users = []
+        skipped_users = []
+        
+        for user_data in users_data:
+            try:
+                # Apply soft coding defaults
+                if bulk_config.get('auto_generate_passwords', True) and not user_data.get('password'):
+                    import secrets
+                    import string
+                    alphabet = string.ascii_letters + string.digits
+                    user_data['password'] = ''.join(secrets.choice(alphabet) for _ in range(
+                        bulk_config.get('password_length', 12)
+                    ))
+                
+                # Apply bulk configuration
+                if bulk_config.get('auto_approve_all', False):
+                    user_data['is_approved'] = True
+                if bulk_config.get('auto_verify_all', False):
+                    user_data['is_verified'] = True
+                if not user_data.get('department'):
+                    user_data['department'] = bulk_config.get('default_department', 'General')
+                
+                # AI Role Matching (soft coding enabled)
+                if bulk_config.get('ai_role_matching', True) and not user_data.get('role'):
+                    matched_role = self.ai_match_role(user_data)
+                    if matched_role:
+                        user_data['role'] = matched_role.id
+                
+                # Validate and create user
+                serializer = UserRegistrationSerializer(data=user_data)
+                if serializer.is_valid():
+                    user = serializer.save()
+                    created_users.append({
+                        'email': user.email,
+                        'full_name': user.get_full_name(),
+                        'role': user.role.name if user.role else None,
+                        'status': 'created'
+                    })
+                    
+                    # Log individual user creation
+                    AuditLog.log_activity(
+                        user=request.user,
+                        action='create',
+                        module='user_management',
+                        object_type='User',
+                        object_id=user.id,
+                        description=f'Bulk import created user: {user.email}',
+                        additional_data={
+                            'bulk_import_batch': True,
+                            'created_by': request.user.get_full_name()
+                        }
+                    )
+                else:
+                    if bulk_config.get('skip_invalid_records', True):
+                        skipped_users.append({
+                            'data': user_data,
+                            'errors': serializer.errors,
+                            'status': 'skipped'
+                        })
+                    else:
+                        failed_users.append({
+                            'data': user_data,
+                            'errors': serializer.errors,
+                            'status': 'failed'
+                        })
+                        
+            except Exception as e:
+                if bulk_config.get('skip_invalid_records', True):
+                    skipped_users.append({
+                        'data': user_data,
+                        'error': str(e),
+                        'status': 'skipped'
+                    })
+                else:
+                    failed_users.append({
+                        'data': user_data,
+                        'error': str(e),
+                        'status': 'failed'
+                    })
+        
+        # Log bulk operation summary
+        AuditLog.log_activity(
+            user=request.user,
+            action='import',
+            module='user_management',
+            object_type='Bulk Users',
+            description=f'Bulk import completed: {len(created_users)} created, {len(failed_users)} failed, {len(skipped_users)} skipped',
+            additional_data={
+                'total_processed': len(users_data),
+                'successful_creations': len(created_users),
+                'failed_creations': len(failed_users),
+                'skipped_records': len(skipped_users),
+                'configuration_used': bulk_config
+            }
+        )
+        
+        return Response({
+            'message': f'Bulk import completed: {len(created_users)} users created',
+            'summary': {
+                'total_processed': len(users_data),
+                'created_count': len(created_users),
+                'failed_count': len(failed_users),
+                'skipped_count': len(skipped_users)
+            },
+            'created_users': created_users,
+            'failed_users': failed_users if not bulk_config.get('skip_invalid_records', True) else [],
+            'skipped_users': skipped_users,
+            'configuration_applied': bulk_config
+        }, status=status.HTTP_201_CREATED)
+    
+    def ai_match_role(self, user_data):
+        """
+        AI-powered role matching based on user data
+        """
+        department = user_data.get('department', '').lower()
+        position = user_data.get('position', '').lower()
+        job_title = user_data.get('job_title', '').lower()
+        
+        # Department-based role mapping (soft coding configuration)
+        role_mapping = {
+            'hr': ['HR Manager', 'HR Specialist', 'Human Resources'],
+            'engineering': ['Engineer', 'Senior Engineer', 'Technical Lead'],
+            'finance': ['Finance Manager', 'Financial Analyst', 'Accountant'],
+            'operations': ['Operations Manager', 'Project Manager', 'Business Analyst'],
+            'it': ['IT Administrator', 'System Administrator', 'IT Support'],
+            'sales': ['Sales Manager', 'Sales Representative', 'Account Manager'],
+            'marketing': ['Marketing Manager', 'Marketing Specialist', 'Content Manager']
+        }
+        
+        # Find matching role based on department
+        for dept, role_names in role_mapping.items():
+            if dept in department or dept in position or dept in job_title:
+                for role_name in role_names:
+                    try:
+                        return Role.objects.filter(
+                            name__icontains=role_name,
+                            is_active=True
+                        ).first()
+                    except Role.DoesNotExist:
+                        continue
+        
+        # Default role fallback
+        return Role.objects.filter(
+            name__icontains='Employee',
+            is_active=True
+        ).first()

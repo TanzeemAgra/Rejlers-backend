@@ -13,6 +13,9 @@ dj-database-url==2.1.0
 # Authentication & Security
 djangorestframework-simplejwt==5.3.0
 django-allauth==0.57.0
+django-guardian==2.4.0
+drf-access-policy==1.5.0
+django-ratelimit==4.1.0
 
 # API Documentation
 drf-spectacular==0.26.5
@@ -45,8 +48,35 @@ pytz==2023.3
 gunicorn==21.2.0
 whitenoise==6.6.0
 
-# AI Services (Essential)
+# AI Services & Machine Learning
 openai==0.28.1
+numpy>=2.0.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# Async Processing & WebSockets
+channels>=4.3.0
+channels-redis>=4.3.0
+celery==5.3.4
+redis==5.0.1
+
+# Data Analysis & Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.17.0
+
+# Statistical Analysis
+scipy>=1.11.0
+statsmodels>=0.14.0
+
+# WebSocket Support
+websockets==11.0.3
 
 # Monitoring
 sentry-sdk[django]==1.38.0
+
+# Additional Utilities for HR Analytics
+python-dateutil==2.8.2
+pytz==2023.3
+openpyxl==3.1.2
+xlsxwriter==3.1.9

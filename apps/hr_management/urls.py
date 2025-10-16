@@ -33,4 +33,6 @@ app_name = 'hr_management'
 
 urlpatterns = [
     path('', include(router.urls)),
+    # HR AI Dashboard Routes
+    path('', include('apps.hr_management.hr_dashboard_urls')),
 ]

@@ -34,6 +34,9 @@ THIRD_PARTY_APPS = [
     'drf_spectacular',
     'django_filters',
     'storages',
+    'guardian',
+    'rest_access_policy',
+    'django_ratelimit',
 ]
 
 LOCAL_APPS = [
@@ -62,6 +65,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.core.rbac_enforcement.RoleBasedAccessMiddleware',
+    'apps.core.db_router.DatabaseRouterMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -388,3 +393,229 @@ AI_SERVICES = {
         'ENABLED': OPENAI_API_KEY is not None,
     }
 }
+
+# ============================================================================
+# ADVANCED RBAC ENFORCEMENT SETTINGS
+# ============================================================================
+
+# Django Guardian Settings
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',  # Django default
+    'guardian.backends.ObjectPermissionBackend',  # Django Guardian
+)
+
+# Guardian Anonymous User
+ANONYMOUS_USER_NAME = None
+
+# RBAC Enforcement Settings
+RBAC_SETTINGS = {
+    'AI_ENABLED': OPENAI_API_KEY is not None,
+    'AI_RISK_THRESHOLD': 0.7,
+    'PERMISSION_CACHE_TIMEOUT': 300,  # 5 minutes
+    'ACCESS_LOG_RETENTION_DAYS': 90,
+    'ENABLE_BEHAVIORAL_ANALYSIS': True,
+    'RATE_LIMIT_PER_USER': 1000,  # requests per hour
+    'RATE_LIMIT_PER_IP': 10000,   # requests per hour
+    'SENSITIVE_OPERATIONS': [
+        'finance.delete_invoice',
+        'hr.delete_employee',
+        'projects.delete_project',
+        'authentication.change_user_role',
+    ],
+    'BUSINESS_HOURS': {
+        'START': 6,  # 6 AM
+        'END': 22,   # 10 PM
+        'TIMEZONE': 'UTC',
+    }
+}
+
+# Enhanced JWT Settings with Role Claims
+SIMPLE_JWT.update({
+    'TOKEN_OBTAIN_SERIALIZER': 'apps.core.enhanced_jwt.EnhancedTokenObtainPairSerializer',
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'INCLUDE_ROLE_CLAIMS': True,
+    'ROLE_CLAIM_NAME': 'roles',
+    'PERMISSION_CLAIM_NAME': 'permissions',
+})
+
+# Database Schema Separation for Sensitive Data
+DATABASE_SCHEMAS = {
+    'finance': {
+        'schema_name': 'finance_data',
+        'restricted_roles': ['CEO', 'CFO', 'Finance Manager'],
+        'require_mfa': True,
+        'audit_all_access': True,
+    },
+    'hr': {
+        'schema_name': 'hr_data', 
+        'restricted_roles': ['CEO', 'CHRO', 'HR Manager'],
+        'require_mfa': True,
+        'audit_all_access': True,
+    },
+    'executive': {
+        'schema_name': 'executive_data',
+        'restricted_roles': ['CEO', 'COO', 'CTO'],
+        'require_mfa': True,
+        'audit_all_access': True,
+    }
+}
+
+# Security Monitoring Settings  
+SECURITY_MONITORING = {
+    'ENABLE_AI_MONITORING': True,
+    'ALERT_THRESHOLDS': {
+        'HIGH_RISK_ACCESS': 0.8,
+        'FAILED_LOGIN_ATTEMPTS': 5,
+        'UNUSUAL_ACCESS_PATTERN': 0.7,
+        'PRIVILEGE_ESCALATION': 0.9,
+    },
+    'NOTIFICATION_CHANNELS': [
+        'email',
+        'slack',
+        'webhook'
+    ],
+    'INCIDENT_AUTO_RESPONSE': {
+        'LOCK_ACCOUNT_THRESHOLD': 0.9,
+        'REQUIRE_MFA_THRESHOLD': 0.7,
+        'NOTIFY_ADMIN_THRESHOLD': 0.6,
+    }
+}
+
+# Logging Configuration for RBAC
+RBAC_LOGGING = {
+    'LOG_ALL_ACCESS_ATTEMPTS': True,
+    'LOG_PERMISSION_CHANGES': True,
+    'LOG_ROLE_ASSIGNMENTS': True,
+    'LOG_AI_DECISIONS': True,
+    'LOG_SECURITY_EVENTS': True,
+    'RETENTION_PERIOD_DAYS': 365,
+}
+
+# Cache Settings for RBAC
+RBAC_CACHE_SETTINGS = {
+    'PERMISSION_CACHE_KEY_PREFIX': 'rbac_perm_',
+    'USER_ROLE_CACHE_KEY_PREFIX': 'rbac_role_',
+    'AI_ANALYSIS_CACHE_KEY_PREFIX': 'rbac_ai_',
+    'DEFAULT_TIMEOUT': 300,  # 5 minutes
+    'ROLE_CHANGE_INVALIDATION': True,
+}
+
+# Database Router Configuration
+DATABASE_ROUTERS = [
+    'apps.core.db_router.RBACSchemaRouter',
+]
+
+# Schema-based Database Configuration
+DATABASE_SCHEMAS = {
+    'public_data': {
+        'description': 'General application data accessible to all users',
+        'security_level': 'low',
+        'encryption_required': False,
+        'backup_frequency': 'daily',
+    },
+    'hr_data': {
+        'description': 'Human resources and employee data (highly sensitive)',
+        'security_level': 'high',
+        'encryption_required': True,
+        'backup_frequency': 'hourly',
+        'compliance': ['GDPR', 'CCPA'],
+    },
+    'finance_data': {
+        'description': 'Financial records and accounting data (highly sensitive)',
+        'security_level': 'high',
+        'encryption_required': True,
+        'backup_frequency': 'hourly',
+        'compliance': ['SOX', 'GDPR'],
+    },
+    'executive_data': {
+        'description': 'Executive and strategic information (maximum security)',
+        'security_level': 'maximum',
+        'encryption_required': True,
+        'backup_frequency': 'real_time',
+        'access_logging': 'detailed',
+        'compliance': ['SOX', 'GDPR', 'Internal'],
+    },
+    'project_data': {
+        'description': 'Project management and operational data',
+        'security_level': 'medium',
+        'encryption_required': False,
+        'backup_frequency': 'daily',
+    },
+    'ai_data': {
+        'description': 'AI models, analytics, and machine learning data',
+        'security_level': 'medium',
+        'encryption_required': True,
+        'backup_frequency': 'daily',
+        'compliance': ['AI_Ethics', 'Data_Protection'],
+    },
+    'audit_data': {
+        'description': 'Security logs and audit trails (read-only for most)',
+        'security_level': 'high',
+        'encryption_required': True,
+        'backup_frequency': 'real_time',
+        'retention_period': '7_years',
+        'immutable': True,
+    },
+    'temp_data': {
+        'description': 'Temporary processing and staging data',
+        'security_level': 'low',
+        'encryption_required': False,
+        'backup_frequency': 'none',
+        'auto_cleanup': '24_hours',
+    },
+}
+
+# Row-Level Security Configuration
+RLS_SETTINGS = {
+    'enabled': True,
+    'enforce_for_superuser': False,  # Superusers bypass RLS
+    'default_policies': {
+        'tenant_isolation': True,
+        'user_data_isolation': True,
+        'department_isolation': True,
+    },
+    'ai_policy_generation': {
+        'enabled': True,
+        'confidence_threshold': 0.8,
+        'review_required': True,
+    },
+}
+
+# Database Audit Configuration
+DATABASE_AUDIT = {
+    'enabled': True,
+    'track_schema_changes': True,
+    'track_permission_changes': True,
+    'track_data_access': {
+        'finance_data': 'all',
+        'hr_data': 'all', 
+        'executive_data': 'all',
+        'audit_data': 'all',
+        'ai_data': 'writes_only',
+        'project_data': 'writes_only',
+        'public_data': 'none',
+    },
+    'ai_anomaly_detection': {
+        'enabled': True,
+        'alert_threshold': 0.7,
+        'patterns_to_track': [
+            'unusual_access_times',
+            'bulk_data_access',
+            'cross_schema_access',
+            'privilege_escalation',
+        ],
+    },
+}
+
+# PostgreSQL Extensions Required
+REQUIRED_POSTGRES_EXTENSIONS = [
+    'pgcrypto',      # For encryption functions
+    'pg_stat_statements',  # For query performance monitoring
+    'pg_trgm',       # For fuzzy text matching
+    'btree_gin',     # For advanced indexing
+    'uuid-ossp',     # For UUID generation
+]

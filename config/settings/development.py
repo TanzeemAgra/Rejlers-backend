@@ -6,6 +6,7 @@ These settings are optimized for local development with debugging enabled.
 
 from .base import *
 from decouple import config
+import os
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -18,10 +19,14 @@ ALLOWED_HOSTS = [
 ]
 
 # Development-specific apps
-INSTALLED_APPS += [
+DEV_ONLY_APPS = [
     'django_extensions',
     'debug_toolbar',
 ]
+
+# Remove rate limiting from development
+THIRD_PARTY_APPS_DEV = [app for app in THIRD_PARTY_APPS if app != 'django_ratelimit']
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS_DEV + LOCAL_APPS + DEV_ONLY_APPS
 
 # Development-specific middleware
 MIDDLEWARE += [
@@ -39,6 +44,82 @@ DEBUG_TOOLBAR_CONFIG = {
         'debug_toolbar.panels.redirects.RedirectsPanel',
     ],
     'SHOW_TEMPLATE_CONTEXT': True,
+}
+
+# Apply Soft Coding Configuration - Direct Implementation
+# USER CREATION CONFIGURATION
+USER_CREATION_CONFIG = {
+    'auto_approve': os.getenv('AUTO_APPROVE_USERS', 'false').lower() == 'true',
+    'auto_verify': os.getenv('AUTO_VERIFY_USERS', 'false').lower() == 'true',
+    'default_role_id': os.getenv('DEFAULT_ROLE_ID', None),
+    'send_welcome_email': os.getenv('SEND_WELCOME_EMAIL', 'true').lower() == 'true',
+    'require_email_verification': os.getenv('REQUIRE_EMAIL_VERIFICATION', 'true').lower() == 'true',
+    'password_policy': {
+        'min_length': int(os.getenv('PASSWORD_MIN_LENGTH', '8')),
+        'require_uppercase': os.getenv('PASSWORD_REQUIRE_UPPERCASE', 'true').lower() == 'true',
+        'require_lowercase': os.getenv('PASSWORD_REQUIRE_LOWERCASE', 'true').lower() == 'true',
+        'require_numbers': os.getenv('PASSWORD_REQUIRE_NUMBERS', 'true').lower() == 'true',
+        'require_special_chars': os.getenv('PASSWORD_REQUIRE_SPECIAL', 'false').lower() == 'true'
+    }
+}
+
+# BULK IMPORT CONFIGURATION
+BULK_IMPORT_CONFIG = {
+    'max_users_per_batch': int(os.getenv('BULK_MAX_USERS_PER_BATCH', '100')),
+    'auto_generate_passwords': os.getenv('BULK_AUTO_GENERATE_PASSWORDS', 'true').lower() == 'true',
+    'password_length': int(os.getenv('BULK_PASSWORD_LENGTH', '12')),
+    'auto_approve_all': os.getenv('BULK_AUTO_APPROVE_ALL', 'false').lower() == 'true',
+    'auto_verify_all': os.getenv('BULK_AUTO_VERIFY_ALL', 'false').lower() == 'true',
+    'skip_invalid_records': os.getenv('BULK_SKIP_INVALID_RECORDS', 'true').lower() == 'true',
+    'ai_role_matching': os.getenv('BULK_AI_ROLE_MATCHING', 'true').lower() == 'true'
+}
+
+# RBAC CONFIGURATION
+RBAC_CONFIG = {
+    'enable_role_hierarchy': os.getenv('RBAC_ENABLE_ROLE_HIERARCHY', 'true').lower() == 'true',
+    'auto_role_assignment': os.getenv('RBAC_AUTO_ROLE_ASSIGNMENT', 'true').lower() == 'true',
+    'permission_caching': os.getenv('RBAC_PERMISSION_CACHING', 'true').lower() == 'true',
+    'cache_timeout': int(os.getenv('RBAC_CACHE_TIMEOUT', '3600'))
+}
+
+# AI ROLE MATCHING CONFIGURATION
+AI_ROLE_MATCHING_CONFIG = {
+    'enable_ai_matching': os.getenv('AI_ROLE_MATCHING_ENABLED', 'true').lower() == 'true',
+    'confidence_threshold': float(os.getenv('AI_CONFIDENCE_THRESHOLD', '0.7')),
+    'learning_mode': os.getenv('AI_LEARNING_MODE', 'active').lower(),
+    'fallback_role': os.getenv('AI_FALLBACK_ROLE', 'Employee')
+}
+
+# AUDIT CONFIGURATION
+AUDIT_CONFIG = {
+    'enable_audit_logging': os.getenv('AUDIT_LOGGING_ENABLED', 'true').lower() == 'true',
+    'log_level': os.getenv('AUDIT_LOG_LEVEL', 'INFO').upper(),
+    'retention_days': int(os.getenv('AUDIT_RETENTION_DAYS', '365'))
+}
+
+# SECURITY CONFIGURATION
+SECURITY_CONFIG = {
+    'password_expiry_days': int(os.getenv('PASSWORD_EXPIRY_DAYS', '90')),
+    'max_login_attempts': int(os.getenv('MAX_LOGIN_ATTEMPTS', '5')),
+    'session_timeout': int(os.getenv('SESSION_TIMEOUT', '28800'))
+}
+
+# NOTIFICATION CONFIGURATION
+NOTIFICATION_CONFIG = {
+    'admin_email': os.getenv('ADMIN_EMAIL', 'admin@rejlers.com'),
+    'notify_admin_on_creation': os.getenv('NOTIFY_ADMIN_ON_USER_CREATION', 'true').lower() == 'true'
+}
+
+# PERFORMANCE CONFIGURATION
+PERFORMANCE_CONFIG = {
+    'paginate_users_by': int(os.getenv('PAGINATE_USERS_BY', '50')),
+    'bulk_operation_chunk_size': int(os.getenv('BULK_OPERATION_CHUNK_SIZE', '100'))
+}
+
+# MONITORING CONFIGURATION
+MONITORING_CONFIG = {
+    'metrics_collection': os.getenv('METRICS_COLLECTION', 'true').lower() == 'true',
+    'log_level': os.getenv('LOG_LEVEL', 'INFO').upper()
 }
 
 # Database - Development can use SQLite for quick setup
@@ -98,10 +179,11 @@ CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 # Email Backend for Development
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-# Cache - Use dummy cache for development
+# Cache - Use database cache for development (needed for rate limiting)
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'dev_cache_table',
     }
 }
 

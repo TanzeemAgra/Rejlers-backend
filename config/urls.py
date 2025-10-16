@@ -60,6 +60,8 @@ api_v1_patterns = [
     path('contacts/', include('apps.contacts.urls')),
     path('hr/', include('apps.hr_management.urls')),
     path('core/', include('apps.core.urls')),
+    path('rbac/', include('apps.core.api_urls')),  # RBAC API endpoints
+    path('ai-hub/', include('apps.core.ai_hub_urls')),  # AI Hub API endpoints
 ]
 
 # Business Module URL patterns

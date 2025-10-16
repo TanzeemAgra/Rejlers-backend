@@ -26,6 +26,8 @@ urlpatterns = [
     path('roles/<uuid:role_id>/users/', views.RoleUsersView.as_view(), name='role_users'),
     path('users/', views.UserListView.as_view(), name='user_list'),
     path('users/<uuid:pk>/', views.UserDetailView.as_view(), name='user_detail'),
+    path('users/create/', views.AdminUserCreateView.as_view(), name='admin_user_create'),
+    path('users/bulk-create/', views.BulkUserCreateView.as_view(), name='bulk_user_create'),
     path('assign-role/', views.UserRoleAssignmentView.as_view(), name='assign_role'),
     
     # Permission checking and user permissions

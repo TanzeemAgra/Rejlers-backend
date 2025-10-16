@@ -189,3 +189,67 @@ class Office(BaseModel):
     
     def __str__(self):
         return f"{self.city}, {self.country.name}"
+
+
+class AccessLog(BaseModel):
+    """
+    Advanced access logging for RBAC enforcement and AI analysis
+    """
+    from django.conf import settings
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='access_logs')
+    resource = models.CharField(max_length=255, help_text="Resource being accessed")
+    action = models.CharField(max_length=100, help_text="Action being performed")
+    success = models.BooleanField(default=True, help_text="Whether access was granted")
+    
+    # Request metadata
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    # AI Analysis results
+    ai_risk_score = models.FloatField(default=0.0, help_text="AI-calculated risk score (0-1)")
+    ai_anomalies = models.JSONField(default=list, blank=True, help_text="AI-detected anomalies")
+    
+    # Additional metadata
+    metadata = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        verbose_name = 'Access Log'
+        verbose_name_plural = 'Access Logs'
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['resource', 'action']),
+            models.Index(fields=['success', 'timestamp']),
+            models.Index(fields=['ai_risk_score']),
+        ]
+    
+    def __str__(self):
+        status = "SUCCESS" if self.success else "DENIED"
+        return f"{self.user.username} - {self.action} on {self.resource} [{status}]"
+    
+    @classmethod
+    def get_user_risk_profile(cls, user, days=30):
+        """
+        Calculate user's risk profile based on access patterns
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        cutoff = timezone.now() - timedelta(days=days)
+        logs = cls.objects.filter(user=user, timestamp__gte=cutoff)
+        
+        total_requests = logs.count()
+        failed_requests = logs.filter(success=False).count()
+        avg_risk_score = logs.aggregate(
+            avg_risk=models.Avg('ai_risk_score')
+        )['avg_risk'] or 0.0
+        
+        return {
+            'total_requests': total_requests,
+            'failed_requests': failed_requests,
+            'success_rate': (total_requests - failed_requests) / max(total_requests, 1),
+            'average_risk_score': round(avg_risk_score, 3),
+            'high_risk_requests': logs.filter(ai_risk_score__gt=0.7).count()
+        }
