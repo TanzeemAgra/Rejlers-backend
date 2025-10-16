@@ -22,12 +22,19 @@ urlpatterns = [
     
     # RBAC management endpoints (admin only)
     path('roles/', views.RoleListView.as_view(), name='role_list'),
-    path('roles/<uuid:pk>/', views.RoleDetailView.as_view(), name='role_detail'),
+    path('roles/<uuid:id>/', views.RoleDetailView.as_view(), name='role_detail'),
+    path('roles/<uuid:role_id>/users/', views.RoleUsersView.as_view(), name='role_users'),
     path('users/', views.UserListView.as_view(), name='user_list'),
     path('users/<uuid:pk>/', views.UserDetailView.as_view(), name='user_detail'),
+    path('assign-role/', views.UserRoleAssignmentView.as_view(), name='assign_role'),
     
-    # Permission checking
+    # Permission checking and user permissions
+    path('permissions/', views.UserPermissionsView.as_view(), name='user_permissions'),
     path('check-permission/', views.UserPermissionCheckView.as_view(), name='check_permission'),
+    path('check-module-permission/', views.check_module_permission, name='check_module_permission'),
+    
+    # RBAC system information
+    path('rbac-info/', views.rbac_system_info, name='rbac_system_info'),
     
     # Audit logs (admin only)
     path('audit-logs/', views.AuditLogListView.as_view(), name='audit_logs'),
