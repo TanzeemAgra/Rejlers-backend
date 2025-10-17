@@ -258,7 +258,13 @@ class UserListView(generics.ListAPIView):
         if not self.request.user.has_module_permission('user_management', 'view'):
             return User.objects.none()
         
-        queryset = User.objects.filter(is_active=True).select_related('role')
+        # Allow viewing deleted users with special parameter
+        include_deleted = self.request.query_params.get('include_deleted', 'false').lower() == 'true'
+        
+        if include_deleted and self.request.user.has_module_permission('user_management', 'manage_all'):
+            queryset = User.objects.all().select_related('role')
+        else:
+            queryset = User.objects.filter(is_active=True).select_related('role')
         
         # Filter by search query if provided
         search = self.request.query_params.get('search', None)
@@ -410,8 +416,34 @@ class UserDeleteView(APIView):
         
         return Response({
             'message': _('User deleted successfully.'),
-            'user_id': str(user.id)
+            'user_id': str(user.id),
+            'deleted_user': {
+                'original_email': user.email.split('_', 2)[-1] if '_' in user.email else user.email,
+                'original_username': user.username.split('_', 2)[-1] if '_' in user.username else user.username,
+                'deleted_at': timezone.now().isoformat(),
+                'deleted_by': request.user.get_full_name() or request.user.username
+            }
         }, status=status.HTTP_200_OK)
+
+
+class DeletedUsersView(generics.ListAPIView):
+    """
+    View deleted users for super admins
+    """
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        # Only super admins or users with manage_all permission can view deleted users
+        if not (self.request.user.is_superuser or 
+                self.request.user.has_module_permission('user_management', 'manage_all')):
+            return User.objects.none()
+        
+        # Return users that are inactive and have deleted_ prefix
+        return User.objects.filter(
+            is_active=False,
+            email__startswith='deleted_'
+        ).select_related('role').order_by('-date_joined')
 
 
 class UserResetPasswordView(APIView):
