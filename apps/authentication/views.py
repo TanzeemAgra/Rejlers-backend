@@ -303,6 +303,169 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         )
 
 
+class UserActivationView(APIView):
+    """
+    User activation/deactivation endpoint for super admins
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, pk):
+        # Check permissions
+        if not request.user.has_module_permission('user_management', 'edit'):
+            raise PermissionDenied(_('You do not have permission to manage user status.'))
+        
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({
+                'error': _('User not found.')
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Prevent self-deactivation
+        if user.id == request.user.id:
+            return Response({
+                'error': _('You cannot deactivate your own account.')
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        action_type = request.data.get('action', 'toggle')
+        
+        if action_type == 'activate':
+            user.is_active = True
+            user.is_verified = True
+            action_description = 'activated'
+        elif action_type == 'deactivate':
+            user.is_active = False
+            action_description = 'deactivated'
+        else:  # toggle
+            user.is_active = not user.is_active
+            action_description = 'activated' if user.is_active else 'deactivated'
+            
+        user.save()
+        
+        # Log the action
+        AuditLog.log_activity(
+            user=request.user,
+            action='update',
+            module='user_management',
+            object_type='User',
+            object_id=user.id,
+            description=f'User {action_description}: {user.email}',
+            additional_data={
+                'action_type': action_type,
+                'new_status': 'active' if user.is_active else 'inactive'
+            }
+        )
+        
+        return Response({
+            'message': _('User status updated successfully.'),
+            'user_id': str(user.id),
+            'is_active': user.is_active,
+            'action_performed': action_description
+        }, status=status.HTTP_200_OK)
+
+
+class UserDeleteView(APIView):
+    """
+    User soft delete endpoint for super admins
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def delete(self, request, pk):
+        # Check permissions
+        if not request.user.has_module_permission('user_management', 'delete'):
+            raise PermissionDenied(_('You do not have permission to delete users.'))
+        
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({
+                'error': _('User not found.')
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Prevent self-deletion
+        if user.id == request.user.id:
+            return Response({
+                'error': _('You cannot delete your own account.')
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Soft delete by marking as inactive and adding deleted flag
+        user.is_active = False
+        user.email = f"deleted_{timezone.now().timestamp()}_{user.email}"
+        user.username = f"deleted_{timezone.now().timestamp()}_{user.username}"
+        user.save()
+        
+        # Log the deletion
+        AuditLog.log_activity(
+            user=request.user,
+            action='delete',
+            module='user_management',
+            object_type='User',
+            object_id=user.id,
+            description=f'User soft deleted: {user.email}',
+            additional_data={
+                'deletion_type': 'soft_delete',
+                'original_email': user.email.split('_', 2)[-1] if '_' in user.email else user.email
+            }
+        )
+        
+        return Response({
+            'message': _('User deleted successfully.'),
+            'user_id': str(user.id)
+        }, status=status.HTTP_200_OK)
+
+
+class UserResetPasswordView(APIView):
+    """
+    Reset user password endpoint for admins
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, pk):
+        # Check permissions
+        if not request.user.has_module_permission('user_management', 'edit'):
+            raise PermissionDenied(_('You do not have permission to reset user passwords.'))
+        
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({
+                'error': _('User not found.')
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Generate temporary password or use provided one
+        new_password = request.data.get('new_password')
+        if not new_password:
+            # Generate a secure temporary password
+            import secrets
+            import string
+            alphabet = string.ascii_letters + string.digits + "!@#$%"
+            new_password = ''.join(secrets.choice(alphabet) for i in range(12))
+        
+        # Set new password
+        user.set_password(new_password)
+        user.save()
+        
+        # Log the action
+        AuditLog.log_activity(
+            user=request.user,
+            action='update',
+            module='user_management',
+            object_type='User',
+            object_id=user.id,
+            description=f'Password reset for user: {user.email}',
+            additional_data={
+                'reset_by': request.user.get_full_name(),
+                'password_generated': not bool(request.data.get('new_password'))
+            }
+        )
+        
+        return Response({
+            'message': _('Password reset successfully.'),
+            'user_id': str(user.id),
+            'temporary_password': new_password if not request.data.get('new_password') else None
+        }, status=status.HTTP_200_OK)
+
+
 class UserPermissionCheckView(APIView):
     """
     Check user permissions for specific modules and actions
