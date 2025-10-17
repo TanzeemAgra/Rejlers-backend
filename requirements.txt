@@ -23,7 +23,7 @@ django-storages==1.14.2
 django-guardian==2.4.0
 
 # Access Control
-django-rest-access-policy==1.7.0
+drf-access-policy==1.4.2
 
 # AI Services
 openai==1.3.0
