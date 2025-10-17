@@ -1,5 +1,11 @@
-# Railway-Optimized Configuration - Soft Coded for Railway Deployment
+# Railway-Optimized nixpacks Configuration - Prevents Docker usage
 
 [variables]
 PYTHONUNBUFFERED = "1"
 DJANGO_SETTINGS_MODULE = "config.settings.railway_production"
+
+[phases.build]
+cmds = ["pip install -r requirements.txt"]
+
+[phases.install]
+cmds = ["echo 'Using nixpacks for Railway deployment'"]

@@ -1,4 +1,4 @@
-# Railway Deployment Configuration
+# Railway Deployment Configuration - Force nixpacks (No Docker)
 # Optimized for production deployment using soft coding techniques
 
 [build]
