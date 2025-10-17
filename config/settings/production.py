@@ -143,34 +143,54 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@rejlers.com')
 SERVER_EMAIL = config('SERVER_EMAIL', default='admin@rejlers.com')
 ADMIN_EMAIL = config('ADMIN_EMAIL', default='admin@rejlers.com')
 
-# Cache Configuration - Redis with fallback
+# Cache Configuration - Soft Coded with django-ratelimit Compatibility
 REDIS_URL = config('REDIS_URL', default=None)
 
-if REDIS_URL:
-    # Use Redis if available
+print(f"🔧 Production Cache Configuration:")
+print(f"   REDIS_URL: {'Set' if REDIS_URL else 'Not set'}")
+
+if REDIS_URL and REDIS_URL != 'redis://localhost:6379/1':
+    # Use Redis if available (supports atomic increment)
+    try:
+        import redis
+        # Test Redis connection
+        r = redis.from_url(REDIS_URL)
+        r.ping()
+        
+        CACHES = {
+            'default': {
+                'BACKEND': 'django_redis.cache.RedisCache',
+                'LOCATION': REDIS_URL,
+                'OPTIONS': {
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                    'CONNECTION_POOL_KWARGS': {
+                        'max_connections': 50,
+                        'retry_on_timeout': True,
+                    },
+                    'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+                    'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+                }
+            }
+        }
+        print("   Backend: Redis (connected successfully)")
+        
+    except Exception as e:
+        print(f"   Redis connection failed: {e}")
+        REDIS_URL = None
+
+if not REDIS_URL:
+    # Fallback to LocMem cache (supports atomic increment for django-ratelimit)
     CACHES = {
         'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': REDIS_URL,
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'production-cache',
             'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'CONNECTION_POOL_KWARGS': {
-                    'max_connections': 50,
-                    'retry_on_timeout': True,
-                },
-                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-                'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+                'MAX_ENTRIES': 10000,
+                'CULL_FREQUENCY': 3,
             }
         }
     }
-else:
-    # Fallback to database caching
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-            'LOCATION': 'cache_table',
-        }
-    }
+    print("   Backend: LocMem (fallback - supports atomic increment)")
 
 # Session configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'

@@ -180,11 +180,16 @@ CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 # Email Backend for Development
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-# Cache - Use database cache for development (needed for rate limiting)
+# Cache - Soft Coded for django-ratelimit Compatibility
+# Use LocMem cache for development (supports atomic increment for rate limiting)
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'dev_cache_table',
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'dev-cache',
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+            'CULL_FREQUENCY': 3,
+        }
     }
 }
 
