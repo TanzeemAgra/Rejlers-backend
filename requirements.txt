@@ -48,6 +48,10 @@ sentry-sdk[django]==1.38.0
 # API Documentation
 drf-spectacular==0.26.5
 
+# Data Science and Analytics
+numpy==1.24.3
+pandas==2.0.3
+
 # Utilities
 Pillow==10.1.0
 python-dateutil==2.8.2
