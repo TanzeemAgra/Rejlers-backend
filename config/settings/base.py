@@ -255,24 +255,22 @@ SPECTACULAR_SETTINGS = {
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = []
 
-# Cache Configuration
+# Default Cache Configuration (can be overridden by environment-specific settings)
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'default-cache',
         'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'MAX_ENTRIES': 1000,
+            'CULL_FREQUENCY': 3,
         }
     }
 }
 
-# Channel Layers Configuration (for Django Channels)
+# Default Channel Layers Configuration (can be overridden by environment-specific settings)
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [config('REDIS_URL', default='redis://localhost:6379/1')],
-        },
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
     },
 }
 

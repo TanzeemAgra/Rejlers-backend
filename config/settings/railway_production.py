@@ -31,14 +31,17 @@ if database_url:
     DATABASES = {
         'default': dj_database_url.parse(database_url, conn_max_age=600)
     }
-    # Railway-specific database optimizations
+    # Railway-specific database optimizations (valid PostgreSQL options)
     DATABASES['default'].update({
         'OPTIONS': {
             'connect_timeout': 30,
-            'command_timeout': 30,
+            # Remove command_timeout as it's not a valid PostgreSQL connection option
         },
         'CONN_MAX_AGE': 600,
     })
+    print(f"🗃️ Database: Railway PostgreSQL connected")
+else:
+    print("⚠️ No DATABASE_URL found, using base configuration")
 
 # CORS Settings for Production
 CORS_ALLOW_ALL_ORIGINS = False
@@ -57,29 +60,54 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.railway\.app$",
 ]
 
-# Cache Configuration - Fixed for Rate Limiting Compatibility
+# Cache Configuration - Soft Coded for Railway with Rate Limiting Support
 REDIS_URL = config('REDIS_URL', default=None)
 
-if REDIS_URL:
+print(f"🔧 Cache Configuration:")
+print(f"   REDIS_URL: {'Set' if REDIS_URL else 'Not set'}")
+
+if REDIS_URL and REDIS_URL != 'redis://localhost:6379/1':
     # Use Redis if available (Railway Redis addon)
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': REDIS_URL,
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'CONNECTION_POOL_KWARGS': {
-                    'max_connections': 20,
-                    'retry_on_timeout': True,
-                    'socket_connect_timeout': 5,
-                    'socket_timeout': 5,
-                },
-                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-                'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+    try:
+        import redis
+        # Test Redis connection
+        r = redis.from_url(REDIS_URL)
+        r.ping()
+        
+        CACHES = {
+            'default': {
+                'BACKEND': 'django_redis.cache.RedisCache',
+                'LOCATION': REDIS_URL,
+                'OPTIONS': {
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                    'CONNECTION_POOL_KWARGS': {
+                        'max_connections': 20,
+                        'retry_on_timeout': True,
+                        'socket_connect_timeout': 5,
+                        'socket_timeout': 5,
+                    },
+                    'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+                    'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+                }
             }
         }
-    }
-else:
+        
+        # Channel layers with Redis
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels_redis.core.RedisChannelLayer',
+                'CONFIG': {
+                    "hosts": [REDIS_URL],
+                },
+            },
+        }
+        print("   Backend: Redis (connected successfully)")
+        
+    except Exception as e:
+        print(f"   Redis connection failed: {e}")
+        REDIS_URL = None
+
+if not REDIS_URL:
     # Fallback to local memory cache (supports atomic increment for rate limiting)
     CACHES = {
         'default': {
@@ -91,6 +119,14 @@ else:
             }
         }
     }
+    
+    # Channel layers in-memory (for development/fallback)
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
+    print("   Backend: LocMem (fallback - supports atomic increment)")
 
 # Session Configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
