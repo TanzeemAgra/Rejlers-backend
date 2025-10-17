@@ -1,3 +1,2 @@
-# Railway Procfile for REJLERS Django Backend - Build/Runtime Phase Separation
-release: DJANGO_SETTINGS_MODULE=config.settings.railway_production python manage.py migrate --noinput && DJANGO_SETTINGS_MODULE=config.settings.railway_production python manage.py collectstatic --noinput
-web: DJANGO_SETTINGS_MODULE=config.settings.railway_production gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120 --keep-alive 2 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile - --log-level info
+# Simple Railway Procfile - nixpacks auto-detection
+web: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
