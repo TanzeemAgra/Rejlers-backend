@@ -37,6 +37,7 @@ THIRD_PARTY_APPS = [
     'guardian',
     'rest_access_policy',
     'django_ratelimit',
+    'channels',
 ]
 
 LOCAL_APPS = [
@@ -90,6 +91,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 # Multi-Database Configuration (Soft Coding - Railway PostgreSQL & MongoDB)
 import dj_database_url
@@ -262,6 +264,16 @@ CACHES = {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
     }
+}
+
+# Channel Layers Configuration (for Django Channels)
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [config('REDIS_URL', default='redis://localhost:6379/1')],
+        },
+    },
 }
 
 # Session Configuration

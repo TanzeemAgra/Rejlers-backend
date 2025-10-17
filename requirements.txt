@@ -28,6 +28,10 @@ drf-access-policy==1.5.0
 # AI Services
 openai==1.3.0
 
+# WebSocket and Real-time Communication
+channels==4.0.0
+channels-redis==4.1.0
+
 # Database - MongoDB Support
 pymongo==4.6.0
 
