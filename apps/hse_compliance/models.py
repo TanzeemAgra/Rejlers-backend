@@ -98,59 +98,27 @@ class ComplianceControl(models.Model):
 class ComplianceAssessment(models.Model):
     """Compliance assessment instances with enhanced regulatory tracking"""
     STATUS_CHOICES = [
-        ('NOT_STARTED', 'Not Started'),
+        ('PENDING', 'Pending'),
         ('IN_PROGRESS', 'In Progress'),
         ('COMPLETED', 'Completed'),
-        ('COMPLIANT', 'Compliant'),
         ('NON_COMPLIANT', 'Non-Compliant'),
-        ('NEEDS_IMPROVEMENT', 'Needs Improvement'),
-        ('UNDER_REVIEW', 'Under Review'),
     ]
     
-    ASSESSMENT_TYPES = [
-        ('INTERNAL_AUDIT', 'Internal Audit'),
-        ('EXTERNAL_AUDIT', 'External Audit'),
-        ('SELF_ASSESSMENT', 'Self Assessment'),
-        ('THIRD_PARTY', 'Third Party Assessment'),
-        ('AI_AUTOMATED', 'AI Automated Assessment'),
-    ]
+    # Keep original field names to avoid migration complexity
+    assessed_location = models.CharField(max_length=200)
+    assessment_data = JSONField(default=dict)
+    compliance_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    assessment_date = models.DateTimeField()
+    notes = models.TextField(blank=True)
     
-    assessment_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    framework = models.ForeignKey(RegulatoryFramework, on_delete=models.CASCADE)
+    # Results and scoring  
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     
-    title = models.CharField(max_length=200)
-    assessment_type = models.CharField(max_length=20, choices=ASSESSMENT_TYPES)
-    
-    # Assessment scope and details
-    scope_description = models.TextField()
-    assessment_criteria = JSONField(default=dict)
-    
-    # Dates and timeline
-    planned_start_date = models.DateTimeField()
-    planned_end_date = models.DateTimeField()
-    actual_start_date = models.DateTimeField(null=True, blank=True)
-    actual_end_date = models.DateTimeField(null=True, blank=True)
-    
-    # Assessment team
-    lead_assessor = models.ForeignKey(User, on_delete=models.PROTECT, related_name='led_assessments')
-    assessment_team = models.ManyToManyField(User, related_name='team_assessments', blank=True)
-    
-    # Results and scoring
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NOT_STARTED')
-    overall_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    compliance_percentage = models.DecimalField(
-        max_digits=5, decimal_places=2, 
-        validators=[MinValueValidator(0), MaxValueValidator(100)],
-        null=True, blank=True
-    )
-    
-    # Assessment metadata
-    executive_summary = models.TextField(blank=True)
-    findings = JSONField(default=list)  # List of findings with severity, description, recommendations
-    action_items = JSONField(default=list)  # List of action items with owners, due dates
+    # Original foreign key relationships
+    assessed_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    checklist = models.ForeignKey('ComplianceChecklist', on_delete=models.PROTECT)
     
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         ordering = ['-created_at']
