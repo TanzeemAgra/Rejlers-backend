@@ -1,8 +1,18 @@
 # 🔧 Railway Production Settings (Fixed)
 # Optimized Django settings for Railway deployment using soft coding
 
+import os
+import sys
 from .base import *
 from decouple import config
+
+# Railway startup diagnostics
+print("🚀 REJLERS Backend - Railway Production Settings Loaded")
+print(f"   Django Settings: {__name__}")
+print(f"   PORT: {os.getenv('PORT', 'Not set')}")
+print(f"   RAILWAY_PROJECT_ID: {os.getenv('RAILWAY_PROJECT_ID', 'Not set')[:8]}..." if os.getenv('RAILWAY_PROJECT_ID') else "   RAILWAY_PROJECT_ID: Not set")
+print(f"   DATABASE_URL: {'Set' if os.getenv('DATABASE_URL') else 'Not set'}")
+print(f"   Python Path: {sys.executable}")
 
 # Debug and Development
 DEBUG = config('DEBUG', default=False, cast=bool)

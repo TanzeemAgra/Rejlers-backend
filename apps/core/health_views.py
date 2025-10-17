@@ -2,15 +2,24 @@ from django.http import JsonResponse
 from django.core.cache import cache
 from django.db import connection
 import sys
+import os
 
 def health_check(request):
     """Health check endpoint for Railway deployment"""
+    
+    # Add Railway diagnostics
+    print(f"🔍 Health check called - Method: {request.method}, Path: {request.path}")
     
     health_data = {
         'status': 'healthy',
         'service': 'rejlers-backend',
         'environment': 'railway-production',
-        'checks': {}
+        'checks': {},
+        'railway_diagnostics': {
+            'port': os.getenv('PORT', 'Not set'),
+            'project_id': os.getenv('RAILWAY_PROJECT_ID', 'Not set')[:8] + "..." if os.getenv('RAILWAY_PROJECT_ID') else 'Not set',
+            'database_url': 'Set' if os.getenv('DATABASE_URL') else 'Not set'
+        }
     }
     
     try:
